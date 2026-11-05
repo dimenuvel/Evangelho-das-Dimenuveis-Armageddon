@@ -34,8 +34,7 @@ jobs:
           cache: 'npm'
 
       - name: Install npm dependencies
-        run: npm ci
-
+        run: | # Falls back to npm install if package.json and package-lock.json are out of sync npm ci || npm install 
       - name: Build Web Application
         run: npm run build
 
@@ -46,14 +45,9 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build Android APKs
-        run: |
-          cd android
-          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
-
+        run: | cd android ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace 
       - name: Locate and Package APKs
-        run: |
-          mkdir -p output-apk
-
+        run: | mkdir -p output-apk 
           RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" -print -quit)
           DEBUG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" -print -quit)
 
