@@ -45,8 +45,10 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build Android APKs
-        run: | cd android ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace 
-     
+        run: |
+          cd android
+          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+
       - name: Locate and Package APKs
         run: | mkdir -p output-apk 
           RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" -print -quit)
