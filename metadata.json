@@ -1,0 +1,6 @@
+{
+  "name": "Gospel of Dimenuves: Holy Armageddon",
+  "description": "A 2D turn-based mobile cosmic artillery game inspired by Worms Armageddon with destructible terrain, cosmic bowling physics, absurd lore, and hot-seat multiplayer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

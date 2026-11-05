@@ -1,0 +1,18 @@
+{
+  "appId": "com.dimenuveis.armageddon",
+  "appName": "Evangelho das Dimenúveis: Armageddon",
+  "version": "1.0",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#05050f",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "ScreenOrientation": {
+      "orientation": "unspecified"
+    }
+  }
+}

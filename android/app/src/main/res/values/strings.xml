@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Evangelho das Dimenúveis: Armageddon</string>
+    <string name="title_activity_main">Evangelho das Dimenúveis: Armageddon</string>
+    <string name="package_name">com.dimenuveis.armageddon</string>
+    <string name="custom_url_scheme">com.dimenuveis.armageddon</string>
+</resources>
