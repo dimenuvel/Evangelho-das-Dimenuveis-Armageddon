@@ -50,7 +50,9 @@ jobs:
           ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Locate and Package APKs
-        run: | mkdir -p output-apk 
+        run: | 
+          mkdir -p output-apk 
+          
           RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" -print -quit)
           DEBUG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" -print -quit)
 
