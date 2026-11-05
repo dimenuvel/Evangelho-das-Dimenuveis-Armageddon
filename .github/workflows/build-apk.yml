@@ -34,7 +34,7 @@ jobs:
           cache: 'npm'
 
       - name: Install npm dependencies
-        run: | # Falls back to npm install if package.json and package-lock.json are out of sync npm ci || npm install 
+        run: npm ci
       - name: Build Web Application
         run: npm run build
 
