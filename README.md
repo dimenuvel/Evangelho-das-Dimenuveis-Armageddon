@@ -1,7 +1,5 @@
 # Evangelho das Dimenúveis: Armageddon
 
-[![Build Android APK](https://github.com/dimenuveis/armageddon/actions/workflows/build-apk.yml/badge.svg)](https://github.com/dimenuveis/armageddon/actions/workflows/build-apk.yml)
-
 > **Cosmic Bowling Artillery Warfare**  
 > Um jogo de estratégia e artilharia por turnos em 2D com terreno destrutível em tempo real, física de projéteis e simulação gravitacional cósmica. Inspirado no universo do Evangelho das Dimenúveis e nos clássicos de artilharia como *Worms* e *Scorched Earth*.
 
@@ -207,4 +205,4 @@ No Android Studio:
 
 ## 📜 Licença
 
-Desenvolvido para o universo de **Evangelho das Dimenúveis**. Distribuído sob os termos da licença Apache 2.0.
+Desenvolvido para o universo de **Evangelho das Dimenúveis**. Distribuído sob os termos da licença MIT.
