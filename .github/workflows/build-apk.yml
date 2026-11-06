@@ -1,4 +1,4 @@
-name: Build Android APK
+Iname: Build Android APK
 
 on:
   push:
@@ -46,11 +46,11 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: | 
-        chmod +x gradlew ./gradlew assembleDebug --no-daemon --stacktrace 
+          chmod +x gradlew ./gradlew assembleDebug --no-daemon --stacktrace 
       
       - name: Prepare APK
         run: | 
-        mkdir -p release-apks cp android/app/build/outputs/apk/debug/app-debug.apk \ release-apks/Evangelho-das-Dimenuveis-Armageddon-v1.0.apk 
+          mkdir -p release-apks cp android/app/build/outputs/apk/debug/app-debug.apk \ release-apks/Evangelho-das-Dimenuveis-Armageddon-v1.0.apk 
      
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
