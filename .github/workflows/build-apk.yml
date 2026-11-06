@@ -46,7 +46,7 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: | 
-          chmod +x gradlew ./gradlew assembleDebug --no-daemon --stacktrace 
+          chmod +x gradlew ./gradlew assembleDebug --stacktrace 
       
       - name: Prepare APK
         run: | 
