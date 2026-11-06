@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import { Award, RotateCcw, Sparkles, Trophy, Users, X } from 'lucide-react';
-import { Language, Team } from '../types/game';
-import { FACTIONS } from '../services/gameConstants';
+import { Award, ChevronRight, RotateCcw, Sparkles, Trophy, Users, X } from 'lucide-react';
+import { CampaignMission, Language, Team } from '../types/game';
+import { DEITIES, FACTIONS } from '../services/gameConstants';
 import { getTranslation } from '../services/localization';
 
 interface GameOverModalProps {
@@ -19,6 +19,8 @@ interface GameOverModalProps {
   language: Language;
   onRematch: () => void;
   onMainMenu: () => void;
+  campaignMission?: CampaignMission | null;
+  onNextMission?: () => void;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -31,10 +33,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   language,
   onRematch,
   onMainMenu,
+  campaignMission,
+  onNextMission,
 }) => {
   if (!isOpen) return null;
 
+  const isPlayerWin = winningTeam?.id === 'team_1';
   const faction = winningTeam ? FACTIONS[winningTeam.faction] : null;
+  const rewardDeity = campaignMission
+    ? DEITIES.find((d) => d.id === campaignMission.unlockDeityId)
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md select-none animate-in fade-in zoom-in-95 duration-200">
@@ -44,13 +52,34 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <Trophy className="w-8 h-8 sm:w-10 sm:h-10 animate-bounce" />
         </div>
 
-        <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-purple-300 to-pink-300 font-cinzel tracking-wider shrink-0">
-          {winningTeam
-            ? getTranslation(language, 'victoryTitle')
-            : getTranslation(language, 'defeatTitle')}
-        </h2>
+        {campaignMission ? (
+          <div className="mb-2 shrink-0">
+            <span className="text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/50 text-purple-300">
+              TRIAL 0{campaignMission.id} · {getTranslation(language, campaignMission.titleKey)}
+            </span>
+            <h2 className="text-lg sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-purple-300 to-pink-300 font-cinzel tracking-wider mt-1.5">
+              {isPlayerWin
+                ? getTranslation(language, 'missionVictory')
+                : getTranslation(language, 'defeatTitle')}
+            </h2>
+            {isPlayerWin && rewardDeity && (
+              <div className="mt-2 p-2 rounded-xl bg-amber-950/60 border border-amber-500/40 text-xs text-amber-200 flex items-center justify-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  {getTranslation(language, 'rewardUnlocked')}: <strong>{rewardDeity.name}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-purple-300 to-pink-300 font-cinzel tracking-wider shrink-0">
+            {winningTeam
+              ? getTranslation(language, 'victoryTitle')
+              : getTranslation(language, 'defeatTitle')}
+          </h2>
+        )}
 
-        {winningTeam && faction && (
+        {winningTeam && faction && !campaignMission && (
           <div className="my-2 sm:my-3 shrink-0">
             <span
               className="text-base sm:text-lg font-bold"
@@ -111,12 +140,27 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           >
             {getTranslation(language, 'backToMenu')}
           </button>
-          <button
-            onClick={onRematch}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs font-cinzel shadow-lg shadow-purple-600/30 transition-all min-h-[44px]"
-          >
-            {getTranslation(language, 'playAgain')}
-          </button>
+          
+          {campaignMission && isPlayerWin && onNextMission && campaignMission.id < 6 ? (
+            <button
+              onClick={onNextMission}
+              className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white font-bold text-xs font-cinzel shadow-lg shadow-purple-600/30 transition-all min-h-[44px] flex items-center justify-center gap-1"
+            >
+              <span>{language === 'pt' ? 'Próximo Julgamento' : 'Next Trial'}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={onRematch}
+              className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs font-cinzel shadow-lg shadow-purple-600/30 transition-all min-h-[44px]"
+            >
+              {campaignMission
+                ? isPlayerWin
+                  ? language === 'pt' ? 'Repetir Julgamento' : 'Replay Trial'
+                  : language === 'pt' ? 'Tentar Novamente' : 'Try Again'
+                : getTranslation(language, 'playAgain')}
+            </button>
+          )}
         </div>
       </div>
     </div>

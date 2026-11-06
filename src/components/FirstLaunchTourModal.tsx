@@ -21,12 +21,14 @@ interface FirstLaunchTourModalProps {
   isOpen: boolean;
   language: Language;
   onClose: () => void;
+  onSetLanguage?: (lang: Language) => void;
 }
 
 export const FirstLaunchTourModal: React.FC<FirstLaunchTourModalProps> = ({
   isOpen,
   language,
   onClose,
+  onSetLanguage,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -78,19 +80,35 @@ export const FirstLaunchTourModal: React.FC<FirstLaunchTourModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md select-none animate-in fade-in duration-150">
       <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-slate-900 border border-purple-500/40 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col justify-between scrollbar-thin scrollbar-thumb-purple-900">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-purple-400" />
-            <h2 className="text-sm font-bold text-slate-100 font-cinzel">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold text-slate-100 font-cinzel truncate">
               {getTranslation(language, 'tourTitle')}
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onSetLanguage && (
+              <button
+                type="button"
+                onClick={() => onSetLanguage(language === 'pt' ? 'en' : 'pt')}
+                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-950 hover:bg-slate-800 border border-purple-500/40 hover:border-purple-300 active:scale-90 transition-all shadow-sm"
+                title={language === 'pt' ? 'Switch to English (US)' : 'Mudar para Português (BR)'}
+                aria-label={language === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+              >
+                <span className="text-base sm:text-lg leading-none select-none" role="img" aria-label={language === 'pt' ? 'Brasil' : 'United States'}>
+                  {language === 'pt' ? '🇧🇷' : '🇺🇸'}
+                </span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/60 transition-colors"
+              title={getTranslation(language, 'tourSkip')}
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}

@@ -9,12 +9,14 @@ import {
   Bot,
   Crown,
   Globe,
+  Mail,
   Play,
   Settings,
   Shield,
   Sparkles,
   Swords,
   Users,
+  Wifi,
 } from 'lucide-react';
 import {
   AIDifficulty,
@@ -44,6 +46,7 @@ interface TitleMenuProps {
     privacyHandoff: boolean;
   }) => void;
   onOpenCampaign: () => void;
+  onOpenLocalNetwork: () => void;
   onOpenDeities: () => void;
   onOpenSettings: () => void;
   onOpenTutorial: () => void;
@@ -54,6 +57,7 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
   onSetLanguage,
   onStartMatch,
   onOpenCampaign,
+  onOpenLocalNetwork,
   onOpenDeities,
   onOpenSettings,
   onOpenTutorial,
@@ -225,6 +229,31 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
                     {language === 'pt'
                       ? 'Passe o aparelho com tela secreta'
                       : 'Pass the device with privacy shield'}
+                  </p>
+                </div>
+              </button>
+
+              {/* Local Wi-Fi Network (2 Mobiles) */}
+              <button
+                onClick={onOpenLocalNetwork}
+                className="arcade-btn group relative p-3.5 sm:p-4 bg-slate-900/90 hover:bg-cyan-950/70 border-2 border-cyan-500/50 hover:border-cyan-300 text-left flex items-center gap-3 sm:col-span-2"
+              >
+                <div className="p-2 sm:p-2.5 bg-cyan-900/80 border border-cyan-400 text-cyan-200 shrink-0">
+                  <Wifi className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] font-arcade px-1.5 py-0.5 bg-cyan-600 text-white shrink-0">
+                      WI-FI LAN
+                    </span>
+                    <h3 className="text-[10px] sm:text-xs font-arcade text-slate-100 leading-snug break-words">
+                      {getTranslation(language, 'localNetworkMultiplayer')}
+                    </h3>
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 font-mono leading-tight">
+                    {language === 'pt'
+                      ? 'Crie uma sala ou conecte 2 celulares pelo Wi-Fi de casa (QR Code / Código)'
+                      : 'Host or join across 2 phones on your home Wi-Fi network (QR Code / Code)'}
                   </p>
                 </div>
               </button>
@@ -472,15 +501,35 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
       </main>
 
       {/* Retro Arcade Footer */}
-      <footer className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 border-t-2 border-slate-800/80 pt-3 font-arcade">
-        <div className="flex items-center gap-2">
+      <footer className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-[10px] text-slate-400 border-t-2 border-slate-800/80 pt-3 text-center font-arcade">
+        <div className="flex items-center justify-center gap-2 flex-wrap text-center">
           <span className="text-amber-400">★</span>
-          <span className="tracking-wider">{language === 'pt' ? 'Evangelho das Dimenúveis: Armageddon' : 'Gospel of Dimenuous: Armageddon'}</span>
+          <a
+            href="https://github.com/dimenuvel/Evangelho-das-Dimenuveis-Armageddon"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tracking-wider text-slate-200 hover:text-amber-300 underline decoration-purple-500/50 hover:decoration-amber-300 transition-colors"
+            title="GitHub Repository"
+          >
+            {language === 'pt' ? 'Evangelho das Dimenúveis: Armageddon' : 'Gospel of Dimenuous: Armageddon'}
+          </a>
           <span className="px-1.5 py-0.5 bg-purple-900 border border-purple-400 text-[9px] font-bold text-purple-200">
             v1.0
           </span>
+          <span className="text-slate-600">·</span>
+          <a
+            href={`mailto:samuel.tiem@proton.me?subject=${encodeURIComponent(
+              language === 'pt' ? 'Evangelho das Dimenúveis: Armageddon' : 'Gospel of Dimenuous: Armageddon'
+            )}`}
+            className="text-purple-400 hover:text-purple-200 underline decoration-purple-600/50 hover:decoration-purple-200 transition-colors flex items-center gap-1"
+            title="E-mail"
+          >
+            <Mail className="w-3 h-3 text-purple-400" />
+            <span>{getTranslation(language, 'contact')}</span>
+          </a>
+          <span className="text-slate-600 hidden md:inline">·</span>
+          <span className="text-slate-500 hidden md:inline">16-BIT COSMIC ARTILLERY</span>
         </div>
-        <span className="text-slate-400 hidden sm:inline">16-BIT COSMIC ARTILLERY</span>
       </footer>
     </div>
   );

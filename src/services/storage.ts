@@ -46,11 +46,48 @@ export function saveSettings(settings: GameSettings) {
   } catch {}
 }
 
+const CAMPAIGN_KEY = 'gospel_dimenuves_campaign';
+
+export function loadCompletedCampaignMissions(): number[] {
+  try {
+    const raw = localStorage.getItem(CAMPAIGN_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((id) => typeof id === 'number' && id >= 1 && id <= 6);
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCompletedCampaignMission(missionId: number): number[] {
+  try {
+    const current = loadCompletedCampaignMissions();
+    if (!current.includes(missionId)) {
+      current.push(missionId);
+      current.sort((a, b) => a - b);
+      localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(current));
+    }
+    return current;
+  } catch {
+    return [missionId];
+  }
+}
+
 export function loadStats(): PlayerStats {
   try {
     const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return { ...defaultStats };
-    return { ...defaultStats, ...JSON.parse(raw) };
+    const completedMissions = loadCompletedCampaignMissions();
+    const computedStars = Math.min(18, completedMissions.length * 3);
+    if (!raw) return { ...defaultStats, campaignStars: computedStars };
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultStats,
+      ...parsed,
+      campaignStars: Math.max(parsed.campaignStars || 0, computedStars),
+    };
   } catch {
     return { ...defaultStats };
   }
@@ -71,13 +108,24 @@ export function recordMatchResult(won: boolean, damage: number, pins: number, vo
   current.pinsKnocked += pins;
   current.voidDrownings += voidKills;
   saveStats(current);
+  return current;
 }
 
-export function unlockDeity(deityId: string) {
+export function unlockDeity(deityId: string): PlayerStats {
   const current = loadStats();
+  let changed = false;
   if (!current.unlockedDeityIds.includes(deityId)) {
     current.unlockedDeityIds.push(deityId);
-    current.campaignStars = Math.min(18, current.campaignStars + 3);
+    changed = true;
+  }
+  const completedMissions = loadCompletedCampaignMissions();
+  const stars = Math.min(18, completedMissions.length * 3);
+  if (current.campaignStars < stars) {
+    current.campaignStars = stars;
+    changed = true;
+  }
+  if (changed) {
     saveStats(current);
   }
+  return current;
 }

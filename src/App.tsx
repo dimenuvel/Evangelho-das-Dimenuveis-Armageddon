@@ -30,9 +30,11 @@ import {
 } from './services/physics';
 import { sound } from './services/sound';
 import {
+  loadCompletedCampaignMissions,
   loadSettings,
   loadStats,
   recordMatchResult,
+  saveCompletedCampaignMission,
   saveSettings,
   saveStats,
   unlockDeity,
@@ -91,7 +93,9 @@ export default function App() {
   const [isRetreating, setIsRetreating] = useState<boolean>(false);
   const [retreatTimer, setRetreatTimer] = useState<number>(0);
   const [announcement, setAnnouncement] = useState<string | null>(null);
-  const [completedCampaignMissions, setCompletedCampaignMissions] = useState<number[]>([1]);
+  const [completedCampaignMissions, setCompletedCampaignMissions] = useState<number[]>(() =>
+    loadCompletedCampaignMissions()
+  );
   const [activeCampaignMission, setActiveCampaignMission] = useState<CampaignMission | null>(null);
   const [privacyHandoffEnabled, setPrivacyHandoffEnabled] = useState<boolean>(true);
 
@@ -467,12 +471,20 @@ export default function App() {
     sound.playVictory(isPlayerWin);
     recordMatchResult(isPlayerWin, totalDamageCount, pinsKnockedCount, voidElimsCount);
 
-    // Unlock campaign reward if completed
+    // Unlock campaign reward and persist progress if completed
     if (activeCampaignMission && isPlayerWin) {
-      if (!completedCampaignMissions.includes(activeCampaignMission.id)) {
-        setCompletedCampaignMissions((prev) => [...prev, activeCampaignMission.id]);
-      }
+      const updatedMissions = saveCompletedCampaignMission(activeCampaignMission.id);
+      setCompletedCampaignMissions(updatedMissions);
       unlockDeity(activeCampaignMission.unlockDeityId);
+      setStats(loadStats());
+
+      const rewardDeity = DEITIES.find((d) => d.id === activeCampaignMission.unlockDeityId);
+      setAnnouncement(
+        settings.language === 'pt'
+          ? `★ JULGAMENTO 0${activeCampaignMission.id} CONCLUÍDO! ${rewardDeity ? `Divindade ${rewardDeity.name} Desbloqueada!` : ''}`
+          : `★ TRIAL 0${activeCampaignMission.id} CLEARED! ${rewardDeity ? `Deity ${rewardDeity.name} Unlocked!` : ''}`
+      );
+      setTimeout(() => setAnnouncement(null), 5000);
     }
   };
 
@@ -967,8 +979,14 @@ export default function App() {
           language={settings.language}
           onSetLanguage={(lang) => handleUpdateSettings({ language: lang })}
           onStartMatch={setupMatch}
-          onOpenCampaign={() => setIsCampaignOpen(true)}
-          onOpenDeities={() => setIsDeitiesOpen(true)}
+          onOpenCampaign={() => {
+            setCompletedCampaignMissions(loadCompletedCampaignMissions());
+            setIsCampaignOpen(true);
+          }}
+          onOpenDeities={() => {
+            setStats(loadStats());
+            setIsDeitiesOpen(true);
+          }}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenTutorial={() => setIsTourOpen(true)}
         />
@@ -1164,22 +1182,41 @@ export default function App() {
             pinsKnocked={pinsKnockedCount}
             voidElims={voidElimsCount}
             language={settings.language}
-            onRematch={() => {
-              setupMatch({
-                mode: gameMode,
-                team1Name: teams[0]?.name,
-                team1Faction: teams[0]?.faction,
-                team1Color: teams[0]?.color,
-                team2Name: teams[1]?.name,
-                team2Faction: teams[1]?.faction,
-                team2Color: teams[1]?.color,
-                mapId: currentMap.id,
-                difficulty: teams[1]?.aiDifficulty,
-                teamSize: characters.length / 2,
-                privacyHandoff: privacyHandoffEnabled,
-              });
+            campaignMission={activeCampaignMission}
+            onNextMission={() => {
+              setIsGameOverOpen(false);
+              if (activeCampaignMission && activeCampaignMission.id < 6) {
+                const nextMission = CAMPAIGN_MISSIONS.find((m) => m.id === activeCampaignMission.id + 1);
+                if (nextMission) {
+                  launchCampaignMission(nextMission);
+                }
+              }
             }}
-            onMainMenu={() => setView('MENU')}
+            onRematch={() => {
+              setIsGameOverOpen(false);
+              if (activeCampaignMission) {
+                launchCampaignMission(activeCampaignMission);
+              } else {
+                setupMatch({
+                  mode: gameMode,
+                  team1Name: teams[0]?.name,
+                  team1Faction: teams[0]?.faction,
+                  team1Color: teams[0]?.color,
+                  team2Name: teams[1]?.name,
+                  team2Faction: teams[1]?.faction,
+                  team2Color: teams[1]?.color,
+                  mapId: currentMap.id,
+                  difficulty: teams[1]?.aiDifficulty,
+                  teamSize: characters.length / 2,
+                  privacyHandoff: privacyHandoffEnabled,
+                });
+              }
+            }}
+            onMainMenu={() => {
+              setIsGameOverOpen(false);
+              setActiveCampaignMission(null);
+              setView('MENU');
+            }}
           />
         </div>
       )}
@@ -1216,6 +1253,7 @@ export default function App() {
         isOpen={isTourOpen}
         language={settings.language}
         onClose={handleCloseTour}
+        onSetLanguage={(lang) => handleUpdateSettings({ language: lang })}
       />
     </div>
   );

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type GameMode = 'SINGLE_PLAYER_AI' | 'HOT_SEAT_LOCAL' | 'CAMPAIGN' | 'PRACTICE';
+export type GameMode = 'SINGLE_PLAYER_AI' | 'HOT_SEAT_LOCAL' | 'CAMPAIGN' | 'PRACTICE' | 'LOCAL_NETWORK';
 
 export type AIDifficulty = 'EASY' | 'NORMAL' | 'ARCHON_NIGHTMARE';
 

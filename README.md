@@ -1,5 +1,7 @@
 # Evangelho das Dimenúveis: Armageddon
 
+[![Build Android APK](https://github.com/dimenuvel/Evangelho-das-Dimenuveis-Armageddon/actions/workflows/build-apk.yml/badge.svg)](https://github.com/dimenuvel/Evangelho-das-Dimenuveis-Armageddon/actions/workflows/build-apk.yml)
+
 > **Cosmic Bowling Artillery Warfare**  
 > Um jogo de estratégia e artilharia por turnos em 2D com terreno destrutível em tempo real, física de projéteis e simulação gravitacional cósmica. Inspirado no universo do Evangelho das Dimenúveis e nos clássicos de artilharia como *Worms* e *Scorched Earth*.
 
@@ -124,11 +126,11 @@ O repositório já inclui o fluxo pronto em `.github/workflows/build-apk.yml`.
 
 1. Ao enviar commits para a branch `main` ou `master` (ou disparar via botão `workflow_dispatch` na aba **Actions** do GitHub);
 2. O runner do Ubuntu executa:
-   - Configuração do Node.js 20 e Java 17 (Zulu);
-   - Instalação das dependências com `npm ci`;
+   - Configuração do Node.js 20 e Java 21 (Zulu LTS);
+   - Instalação das dependências exatas com `npm ci`;
    - Build do web app via `npm run build`;
    - Sincronização com o Android via `npx cap sync android`;
-   - Compilação do APK via `./gradlew assembleDebug`;
+   - Compilação do APK via `./gradlew assembleDebug --no-daemon`;
 3. O arquivo final é salvo nos artefatos da execução com o nome:
    `Evangelho-das-Dimenuveis-Armageddon-v1.0.apk`.
 
@@ -137,11 +139,11 @@ O repositório já inclui o fluxo pronto em `.github/workflows/build-apk.yml`.
 ### Método 2: Compilação Local com Android SDK / Linha de Comando
 
 #### Pré-requisitos:
-- **Java Development Kit (JDK):** Versão 17 ou superior (ex: OpenJDK 17 ou Eclipse Temurin 17)
+- **Java Development Kit (JDK):** Versão 21 (LTS recomendada para Capacitor 8)
 - **Android SDK:** Configurado com a variável de ambiente `ANDROID_HOME` apontando para o SDK
-  - Build Tools: `34.0.0`
-  - Compile SDK: `34`
-  - Min SDK: `22` (compatível com Android 5.1 até Android 14+)
+  - Build Tools: `35.0.0`
+  - Compile SDK: `36` (ou `35`)
+  - Min SDK: `24` (Android 7.0+)
 
 #### Passo a Passo:
 
@@ -205,4 +207,4 @@ No Android Studio:
 
 ## 📜 Licença
 
-Desenvolvido para o universo de **Evangelho das Dimenúveis**. Distribuído sob os termos da licença MIT.
+Desenvolvido para o universo de **Evangelho das Dimenúveis**. Distribuído sob os termos da licença Apache 2.0.
