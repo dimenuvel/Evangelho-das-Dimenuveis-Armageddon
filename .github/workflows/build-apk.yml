@@ -46,19 +46,20 @@ jobs:
       - name: Set Gradle permissions
         run: chmod +x android/gradlew
 
-      - name: Build Android APKs
+      - name: Build Android Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          ./gradlew clean assembleDebug --stacktrace --no-build-cache
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Evangelho-das-Dimenuveis-Armageddon.apk
 
-      - name: Prepare APK
-        run: | 
-          mkdir -p release-apks cp android/app/build/outputs/apk/debug/app-debug.apk \ release-apks/Evangelho-das-Dimenuveis-Armageddon-v1.0.apk 
-     
-      - name: Upload APK artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Evangelho-das-Dimenuveis-Armageddon-v1.0-APK
-          path: release-apks/Evangelho-das-Dimenuveis-Armageddon-v1.0.apk
-          if-no-files-found: error
-          retention-days: 14
+          name: Evangelho-das-Dimenuveis-Armageddon-APK
+          path: android/app/build/outputs/apk/debug/Evangelho-das-Dimenuveis-Armageddon.apk
+          retention-days: 30
+
+
+
+        
+
