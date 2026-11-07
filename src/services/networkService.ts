@@ -77,17 +77,7 @@ class NetworkService {
   public getSavedServerUrl(): string {
     try {
       const saved = localStorage.getItem('gospel_lan_server_url') || '';
-      // Clear out localhost or 127.0.0.1 as a saved server since localhost cannot be accessed across phones
-      if (saved.includes('localhost') || saved.includes('127.0.0.1')) {
-        localStorage.removeItem('gospel_lan_server_url');
-        return '';
-      }
-      // If running on an HTTPS origin, an insecure http:// saved URL is strictly blocked by browsers
-      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && saved.startsWith('http://')) {
-        localStorage.removeItem('gospel_lan_server_url');
-        return '';
-      }
-      return saved;
+      return saved.trim();
     } catch {
       return '';
     }
@@ -95,11 +85,28 @@ class NetworkService {
 
   public setServerUrl(url: string) {
     let clean = url.trim();
-    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    if (!clean) {
+      this.serverUrl = '';
+      try {
+        localStorage.removeItem('gospel_lan_server_url');
+      } catch {}
+      return;
+    }
+    if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('ws://') && !clean.startsWith('wss://')) {
       clean = 'http://' + clean;
     }
     // Remove trailing slash
     clean = clean.replace(/\/+$/, '');
+
+    // If an IPv4 address was entered without a port, default to port 3000
+    try {
+      const parsed = new URL(clean);
+      if (!parsed.port && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(parsed.hostname)) {
+        parsed.port = '3000';
+        clean = parsed.origin;
+      }
+    } catch {}
+
     this.serverUrl = clean;
     try {
       localStorage.setItem('gospel_lan_server_url', clean);
@@ -111,24 +118,35 @@ class NetworkService {
   }
 
   public getWsUrl(): string {
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    let url = (this.serverUrl || '').trim();
+    if (!url) {
+      url = this.detectDefaultServerUrl();
+    }
 
-    // In an HTTPS context (e.g. cloud applet, deployed web preview):
-    if (isHttps) {
-      if (this.serverUrl && this.serverUrl.startsWith('https://')) {
-        return this.serverUrl.replace(/^https:/, 'wss:');
+    if (url) {
+      if (url.startsWith('https://')) {
+        return url.replace(/^https:/, 'wss:');
       }
-      // If serverUrl is an unencrypted HTTP or local LAN IP address, the browser will throw SecurityError.
-      // We must connect to the current HTTPS host using wss://
+      if (url.startsWith('http://')) {
+        return url.replace(/^http:/, 'ws:');
+      }
+      if (url.startsWith('wss://') || url.startsWith('ws://')) {
+        return url;
+      }
+      return `ws://${url}`;
+    }
+
+    // Fallback if no URL was set or detected
+    if (
+      typeof window !== 'undefined' &&
+      window.location &&
+      window.location.protocol === 'https:' &&
+      !window.location.hostname.includes('localhost') &&
+      !window.location.hostname.includes('127.0.0.1')
+    ) {
       return `wss://${window.location.host}`;
     }
-
-    // Otherwise (HTTP or Capacitor mobile app):
-    const url = this.serverUrl || this.detectDefaultServerUrl();
-    if (url.startsWith('https://')) {
-      return url.replace(/^https:/, 'wss:');
-    }
-    return url.replace(/^http:/, 'ws:');
+    return `ws://${(typeof window !== 'undefined' && window.location.hostname) || 'localhost'}:3000`;
   }
 
   /**

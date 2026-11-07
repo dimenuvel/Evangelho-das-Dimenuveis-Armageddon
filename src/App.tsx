@@ -193,15 +193,9 @@ export default function App() {
     setCompletedCampaignMissions([1]);
   };
 
-  // Auto-open local network modal if URL has ?join=XXXX and sanitize HTTPS storage
+  // Auto-open local network modal if URL has ?join=XXXX
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.protocol === 'https:') {
-        const saved = localStorage.getItem('gospel_lan_server_url');
-        if (saved && saved.startsWith('http://')) {
-          localStorage.removeItem('gospel_lan_server_url');
-        }
-      }
       const params = new URLSearchParams(window.location.search);
       if (params.get('join')) {
         setIsLocalNetworkModalOpen(true);

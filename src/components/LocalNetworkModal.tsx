@@ -72,15 +72,15 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   const [isDetectingIp, setIsDetectingIp] = useState<boolean>(false);
 
   const [serverUrl, setServerUrl] = useState<string>(() => {
+    const saved = networkService.getSavedServerUrl();
+    if (saved) {
+      return saved;
+    }
     if (initialNativeIp) {
       return `http://${initialNativeIp}:3000`;
     }
     if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
       return window.location.origin;
-    }
-    const saved = networkService.getSavedServerUrl();
-    if (saved && !saved.includes('localhost')) {
-      return saved;
     }
     return '';
   });
@@ -215,13 +215,12 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setIsConnecting(true);
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    let targetUrl = serverUrl;
-    if (isHttps && targetUrl.startsWith('http://')) {
-      targetUrl = window.location.origin;
-      setServerUrl(window.location.origin);
+    
+    const targetUrl = (serverUrl || '').trim();
+    if (targetUrl) {
+      networkService.setServerUrl(targetUrl);
+      setServerUrl(networkService.getServerUrl());
     }
-    networkService.setServerUrl(targetUrl);
 
     const settings: NetworkRoomSettings = {
       mapId: selectedMap,
@@ -232,10 +231,11 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     const success = await networkService.createRoom(playerName, selectedFaction, settings);
     if (!success) {
       setIsConnecting(false);
+      const attempted = networkService.getServerUrl() || targetUrl || 'http://localhost:3000';
       setErrorMessage(
         language === 'pt'
-          ? 'Falha ao conectar no servidor local.'
-          : 'Could not reach local host server.'
+          ? `Falha ao conectar no servidor (${attempted}). Verifique se o servidor está iniciado e se ambos os aparelhos estão no mesmo Wi-Fi.`
+          : `Could not reach server at (${attempted}). Verify the server is running and both devices share the same Wi-Fi.`
       );
     }
   };
@@ -249,13 +249,12 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setIsConnecting(true);
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    let targetUrl = serverUrl;
-    if (isHttps && targetUrl.startsWith('http://')) {
-      targetUrl = window.location.origin;
-      setServerUrl(window.location.origin);
+
+    const targetUrl = (serverUrl || '').trim();
+    if (targetUrl) {
+      networkService.setServerUrl(targetUrl);
+      setServerUrl(networkService.getServerUrl());
     }
-    networkService.setServerUrl(targetUrl);
 
     const success = await networkService.joinRoom(
       joinCodeInput.trim().toUpperCase(),
@@ -265,10 +264,11 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
 
     if (!success) {
       setIsConnecting(false);
+      const attempted = networkService.getServerUrl() || targetUrl || 'http://localhost:3000';
       setErrorMessage(
         language === 'pt'
-          ? 'Falha ao conectar ao servidor da rede.'
-          : 'Failed to connect to host server.'
+          ? `Falha ao conectar ao servidor da rede (${attempted}). Verifique o IP do anfitrião e o código da sala.`
+          : `Failed to connect to host server at (${attempted}). Verify host IP and room code.`
       );
     }
   };
