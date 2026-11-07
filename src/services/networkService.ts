@@ -59,7 +59,13 @@ class NetworkService {
 
   public getSavedServerUrl(): string {
     try {
-      return localStorage.getItem('gospel_lan_server_url') || '';
+      const saved = localStorage.getItem('gospel_lan_server_url') || '';
+      // If running on an HTTPS origin, an insecure http:// saved URL is strictly blocked by browsers
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && saved.startsWith('http://')) {
+        localStorage.removeItem('gospel_lan_server_url');
+        return '';
+      }
+      return saved;
     } catch {
       return '';
     }
@@ -83,13 +89,33 @@ class NetworkService {
   }
 
   public getWsUrl(): string {
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+    // In an HTTPS context (e.g. cloud applet, deployed web preview):
+    if (isHttps) {
+      if (this.serverUrl && this.serverUrl.startsWith('https://')) {
+        return this.serverUrl.replace(/^https:/, 'wss:');
+      }
+      // If serverUrl is an unencrypted HTTP or local LAN IP address, the browser will throw SecurityError.
+      // We must connect to the current HTTPS host using wss://
+      return `wss://${window.location.host}`;
+    }
+
+    // Otherwise (HTTP or Capacitor mobile app):
     const url = this.serverUrl || this.detectDefaultServerUrl();
-    return url.replace(/^http/, 'ws');
+    if (url.startsWith('https://')) {
+      return url.replace(/^https:/, 'wss:');
+    }
+    return url.replace(/^http:/, 'ws:');
   }
 
   public async fetchLocalNetworkInfo(): Promise<{ localIp: string; port: number; localUrl: string } | null> {
     try {
-      const res = await fetch(`${this.serverUrl}/api/network-info`);
+      const baseUrl =
+        typeof window !== 'undefined' && window.location.protocol.startsWith('http')
+          ? window.location.origin
+          : this.serverUrl || 'http://localhost:3000';
+      const res = await fetch(`${baseUrl}/api/network-info`);
       if (res.ok) {
         return await res.json();
       }

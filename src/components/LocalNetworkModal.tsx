@@ -56,7 +56,12 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   const [turnTimeLimit, setTurnTimeLimit] = useState<number>(45);
 
   // Connection & Room State
-  const [serverUrl, setServerUrl] = useState<string>(networkService.getServerUrl());
+  const [serverUrl, setServerUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      return window.location.origin;
+    }
+    return networkService.getServerUrl() || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+  });
   const [localNetworkIp, setLocalNetworkIp] = useState<string>('');
   const [roomCode, setRoomCode] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState<string>('');
@@ -88,7 +93,9 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     networkService.fetchLocalNetworkInfo().then((info) => {
       if (info) {
         setLocalNetworkIp(info.localIp);
-        if (!networkService.getSavedServerUrl() && info.localUrl) {
+        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+        // Only override serverUrl with localUrl if in an HTTP/LAN or Capacitor environment
+        if (!isHttps && !networkService.getSavedServerUrl() && info.localUrl) {
           setServerUrl(info.localUrl);
           networkService.setServerUrl(info.localUrl);
         }
@@ -102,7 +109,16 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
       setStatusMessage(getTranslation(language, 'waitingForPlayer2'));
 
       // Generate QR Code with join URL
-      const fullJoinUrl = `${networkService.getServerUrl() || window.location.origin}/?join=${payload.code}`;
+      let baseJoinUrl = typeof window !== 'undefined' ? window.location.origin : (networkService.getServerUrl() || 'http://localhost:3000');
+      if (
+        typeof window !== 'undefined' &&
+        window.location.protocol !== 'https:' &&
+        localNetworkIp &&
+        localNetworkIp !== 'localhost'
+      ) {
+        baseJoinUrl = `http://${localNetworkIp}:3000`;
+      }
+      const fullJoinUrl = `${baseJoinUrl}/?join=${payload.code}`;
       const qr = await networkService.generateJoinQRCode(payload.code, fullJoinUrl);
       setQrCodeDataUrl(qr);
     });
@@ -167,7 +183,13 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setIsConnecting(true);
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
-    networkService.setServerUrl(serverUrl);
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    let targetUrl = serverUrl;
+    if (isHttps && targetUrl.startsWith('http://')) {
+      targetUrl = window.location.origin;
+      setServerUrl(window.location.origin);
+    }
+    networkService.setServerUrl(targetUrl);
 
     const settings: NetworkRoomSettings = {
       mapId: selectedMap,
@@ -195,7 +217,13 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setIsConnecting(true);
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
-    networkService.setServerUrl(serverUrl);
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    let targetUrl = serverUrl;
+    if (isHttps && targetUrl.startsWith('http://')) {
+      targetUrl = window.location.origin;
+      setServerUrl(window.location.origin);
+    }
+    networkService.setServerUrl(targetUrl);
 
     const success = await networkService.joinRoom(
       joinCodeInput.trim().toUpperCase(),
@@ -218,7 +246,16 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   };
 
   const handleCopyLink = () => {
-    const fullUrl = `${networkService.getServerUrl() || window.location.origin}/?join=${roomCode}`;
+    let baseJoinUrl = typeof window !== 'undefined' ? window.location.origin : (networkService.getServerUrl() || 'http://localhost:3000');
+    if (
+      typeof window !== 'undefined' &&
+      window.location.protocol !== 'https:' &&
+      localNetworkIp &&
+      localNetworkIp !== 'localhost'
+    ) {
+      baseJoinUrl = `http://${localNetworkIp}:3000`;
+    }
+    const fullUrl = `${baseJoinUrl}/?join=${roomCode}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(fullUrl);
       setCopiedLink(true);
