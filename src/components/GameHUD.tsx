@@ -216,14 +216,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <button
                     onClick={onZoomOut}
                     className="p-1.5 text-slate-300 hover:bg-slate-800 min-h-[36px] min-w-[32px] flex items-center justify-center"
-                    title="Zoom Out"
+                    title={language === 'pt' ? 'Afastar Câmera' : 'Zoom Out'}
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={onZoomIn}
                     className="p-1.5 text-slate-300 hover:bg-slate-800 min-h-[36px] min-w-[32px] flex items-center justify-center"
-                    title="Zoom In"
+                    title={language === 'pt' ? 'Aproximar Câmera' : 'Zoom In'}
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
@@ -371,17 +371,18 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       : 'bg-slate-900 border-slate-700 text-amber-300'
                   }`}
                 >
-                  TIME {turnTimer}
+                  ⏱ {getTranslation(language, 'timeLabel')} {turnTimer}s
                 </div>
               ) : (
                 <div className="px-2 py-1 bg-slate-900 border-2 border-slate-700 text-slate-300 text-[9px] sm:text-[10px] font-arcade">
-                  TIME ∞
+                  ⏱ {getTranslation(language, 'timeLabel')} ∞
                 </div>
               )}
 
               {/* Wind Gauge */}
-              <div className="flex items-center gap-1 px-2 py-1 bg-slate-900 border-2 border-slate-700 text-[9px] sm:text-[10px] font-arcade text-slate-300 shadow-lg shrink-0">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900 border-2 border-slate-700 text-[9px] sm:text-[10px] font-arcade text-slate-300 shadow-lg shrink-0">
                 <Wind className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-400" />
+                <span className="text-[9px] text-slate-400">{getTranslation(language, 'windLabel')}</span>
                 <div className="flex items-center">
                   {windDir === 'left' && <span className="text-sky-400 mr-0.5">◀</span>}
                   <span className="text-sky-300 font-bold">{windAbs}</span>
@@ -396,14 +397,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <button
                   onClick={onZoomOut}
                   className="p-1.5 sm:p-2 text-slate-300 hover:bg-slate-800 min-h-[38px] min-w-[34px] flex items-center justify-center"
-                  title="Zoom Out"
+                  title={language === 'pt' ? 'Afastar Câmera' : 'Zoom Out'}
                 >
                   <Minimize2 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={onZoomIn}
                   className="p-1.5 sm:p-2 text-slate-300 hover:bg-slate-800 min-h-[38px] min-w-[34px] flex items-center justify-center"
-                  title="Zoom In"
+                  title={language === 'pt' ? 'Aproximar Câmera' : 'Zoom In'}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
                 </button>
@@ -479,7 +480,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     {getTranslation(language, selectedWeapon.nameKey)}
                   </span>
                   <span className="text-[8px] sm:text-[9px] font-arcade text-amber-400 whitespace-nowrap">
-                    {selectedWeapon.initialAmmo === -1 ? 'AMMO ∞' : `AMMO x${availableAmmo}`}
+                    {selectedWeapon.initialAmmo === -1
+                      ? `${getTranslation(language, 'ammoLabel')} ∞`
+                      : `${getTranslation(language, 'ammoLabel')} x${availableAmmo}`}
                   </span>
                 </div>
               </button>
@@ -495,7 +498,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     onMouseLeave={stopAngleHold}
                     disabled={!canFire}
                     className="w-7 sm:w-8 h-8 bg-slate-800 active:bg-purple-600 text-slate-100 text-xs font-arcade flex items-center justify-center arcade-btn select-none"
-                    title="Aim Down (-)"
+                    title={language === 'pt' ? 'Baixar Mira (-)' : 'Aim Down (-)'}
                   >
                     -
                   </button>
@@ -519,7 +522,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     onMouseLeave={stopAngleHold}
                     disabled={!canFire}
                     className="w-7 sm:w-8 h-8 bg-slate-800 active:bg-purple-600 text-slate-100 text-xs font-arcade flex items-center justify-center arcade-btn select-none"
-                    title="Aim Up (+)"
+                    title={language === 'pt' ? 'Subir Mira (+)' : 'Aim Up (+)'}
                   >
                     +
                   </button>
@@ -565,7 +568,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onMouseLeave={onMoveLeftEnd}
                   disabled={!canAct}
                   className="arcade-btn w-10 sm:w-11 h-11 bg-slate-900 active:bg-purple-600 border-2 border-slate-600 text-slate-100 flex items-center justify-center shrink-0"
-                  title="Move Left"
+                  title={language === 'pt' ? 'Mover para Esquerda' : 'Move Left'}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -578,7 +581,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onMouseLeave={onMoveRightEnd}
                   disabled={!canAct}
                   className="arcade-btn w-10 sm:w-11 h-11 bg-slate-900 active:bg-purple-600 border-2 border-slate-600 text-slate-100 flex items-center justify-center shrink-0"
-                  title="Move Right"
+                  title={language === 'pt' ? 'Mover para Direita' : 'Move Right'}
                 >
                   <ArrowRight className="w-5 h-5" />
                 </button>
@@ -661,7 +664,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   }`}
                 >
                   <Zap className="w-4 h-4" />
-                  <span>JETPACK</span>
+                  <span>{getTranslation(language, 'jetpackLabel')}</span>
                   <span>{Math.round(activeCharacter.jetpackFuel)}%</span>
                 </button>
               )}
@@ -675,6 +678,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onMouseLeave={onMoveLeftEnd}
                   disabled={!canAct}
                   className="arcade-btn w-13 h-13 bg-slate-900 active:bg-purple-600 border-2 border-slate-600 text-slate-100 flex items-center justify-center"
+                  title={language === 'pt' ? 'Mover para Esquerda' : 'Move Left'}
                 >
                   <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -687,6 +691,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onMouseLeave={onMoveRightEnd}
                   disabled={!canAct}
                   className="arcade-btn w-13 h-13 bg-slate-900 active:bg-purple-600 border-2 border-slate-600 text-slate-100 flex items-center justify-center"
+                  title={language === 'pt' ? 'Mover para Direita' : 'Move Right'}
                 >
                   <ArrowRight className="w-6 h-6" />
                 </button>
@@ -719,7 +724,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <div className={`flex flex-col items-center p-2 bg-slate-900 border-2 border-slate-700 shadow-xl ${!canFire ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="flex items-center justify-between w-full gap-2 px-0.5">
                     <span className="text-[9px] font-arcade text-slate-300 uppercase">
-                      ANGLE {aimAngle}°
+                      {getTranslation(language, 'aimAngleLabel')} {aimAngle}°
                     </span>
                     <button
                       onClick={handleFlipAim}
@@ -740,7 +745,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       onMouseLeave={stopAngleHold}
                       disabled={!canFire}
                       className="arcade-btn w-9 h-9 bg-slate-800 text-slate-100 active:bg-purple-600 flex items-center justify-center font-arcade text-sm select-none"
-                      title="Aim Down (-)"
+                      title={language === 'pt' ? 'Baixar Mira (-)' : 'Aim Down (-)'}
                     >
                       -
                     </button>
@@ -761,7 +766,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       onMouseLeave={stopAngleHold}
                       disabled={!canFire}
                       className="arcade-btn w-9 h-9 bg-slate-800 text-slate-100 active:bg-purple-600 flex items-center justify-center font-arcade text-sm select-none"
-                      title="Aim Up (+)"
+                      title={language === 'pt' ? 'Subir Mira (+)' : 'Aim Up (+)'}
                     >
                       +
                     </button>
@@ -782,7 +787,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     {getTranslation(language, selectedWeapon.nameKey)}
                   </span>
                   <span className="text-[10px] font-arcade text-amber-400 whitespace-nowrap">
-                    {selectedWeapon.initialAmmo === -1 ? 'AMMO ∞' : `AMMO x${availableAmmo}`}
+                    {selectedWeapon.initialAmmo === -1
+                      ? `${getTranslation(language, 'ammoLabel')} ∞`
+                      : `${getTranslation(language, 'ammoLabel')} x${availableAmmo}`}
                   </span>
                 </div>
               </button>

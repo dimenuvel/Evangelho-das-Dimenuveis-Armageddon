@@ -657,10 +657,10 @@ export default function App() {
   const launchCampaignMission = (mission: CampaignMission) => {
     setupMatch({
       mode: 'CAMPAIGN',
-      team1Name: 'Player Seekers',
+      team1Name: settings.language === 'pt' ? 'Buscadores da Verdade' : 'Player Seekers',
       team1Faction: mission.playerFaction,
       team1Color: FACTIONS[mission.playerFaction].primaryColor,
-      team2Name: 'Trial Opponents',
+      team2Name: settings.language === 'pt' ? 'Oponentes do Julgamento' : 'Trial Opponents',
       team2Faction: mission.enemyFaction,
       team2Color: FACTIONS[mission.enemyFaction].primaryColor,
       mapId: mission.mapId,
@@ -844,8 +844,8 @@ export default function App() {
       const rewardDeity = DEITIES.find((d) => d.id === activeCampaignMission.unlockDeityId);
       setAnnouncement(
         settings.language === 'pt'
-          ? `★ JULGAMENTO 0${activeCampaignMission.id} CONCLUÍDO! ${rewardDeity ? `Divindade ${rewardDeity.name} Desbloqueada!` : ''}`
-          : `★ TRIAL 0${activeCampaignMission.id} CLEARED! ${rewardDeity ? `Deity ${rewardDeity.name} Unlocked!` : ''}`
+          ? `★ JULGAMENTO 0${activeCampaignMission.id} CONCLUÍDO! ${rewardDeity ? `Divindade ${getTranslation('pt', rewardDeity.nameKey, rewardDeity.name)} Desbloqueada!` : ''}`
+          : `★ TRIAL 0${activeCampaignMission.id} CLEARED! ${rewardDeity ? `Deity ${getTranslation('en', rewardDeity.nameKey, rewardDeity.name)} Unlocked!` : ''}`
       );
       setTimeout(() => setAnnouncement(null), 5000);
     }
@@ -1546,6 +1546,7 @@ export default function App() {
             mapDef={currentMap}
             characters={characters}
             activeCharacter={activeChar}
+            language={settings.language}
             projectiles={activeProjectiles}
             particles={activeParticles}
             damageIndicators={activeDamageIndicators}

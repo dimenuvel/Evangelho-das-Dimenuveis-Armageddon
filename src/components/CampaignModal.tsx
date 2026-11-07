@@ -84,7 +84,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-mono font-bold text-purple-400">
-                      {isCompleted ? '✓ CLEARED' : `TRIAL 0${mission.id}`}
+                      {isCompleted ? getTranslation(language, 'clearedBadge') : `${getTranslation(language, 'trialPrefix')} 0${mission.id}`}
                     </span>
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -95,7 +95,11 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                           : 'bg-rose-950 text-rose-400 border border-rose-700/50'
                       }`}
                     >
-                      {mission.difficulty}
+                      {mission.difficulty === 'EASY'
+                        ? getTranslation(language, 'diffEasyShort')
+                        : mission.difficulty === 'NORMAL'
+                        ? getTranslation(language, 'diffNormalShort')
+                        : getTranslation(language, 'diffNightmareShort')}
                     </span>
                   </div>
 
@@ -109,13 +113,13 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
 
                   <div className="mt-3 p-2 sm:p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-400">
                     <div className="break-words">
-                      <span className="text-slate-500">Map: </span>
+                      <span className="text-slate-500">{getTranslation(language, 'mapLabel')} </span>
                       <span className="text-slate-300 font-medium">
                         {getTranslation(language, mapDef.nameKey)}
                       </span>
                     </div>
                     <div className="break-words">
-                      <span className="text-slate-500">Versus: </span>
+                      <span className="text-slate-500">{getTranslation(language, 'versusLabel')} </span>
                       <span className="text-amber-300 font-medium">
                         {getTranslation(language, enemyFaction.nameKey)}
                       </span>
@@ -126,7 +130,10 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                     <div className="mt-2 flex items-center gap-2 text-xs text-purple-300">
                       <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="break-words">
-                        Reward: <strong className="text-amber-300">{rewardDeity.name}</strong>
+                        {getTranslation(language, 'rewardLabel')}{' '}
+                        <strong className="text-amber-300">
+                          {getTranslation(language, rewardDeity.nameKey, rewardDeity.name)}
+                        </strong>
                       </span>
                     </div>
                   )}
@@ -141,7 +148,9 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                       }}
                       className="w-full py-2 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs font-cinzel tracking-wider shadow-md active:scale-98 transition-all min-h-[44px]"
                     >
-                      {isCompleted ? 'Replay Trial' : getTranslation(language, 'startMission')}
+                      {isCompleted
+                        ? getTranslation(language, 'replayTrial')
+                        : getTranslation(language, 'startMission')}
                     </button>
                   ) : (
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 py-2">

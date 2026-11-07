@@ -65,11 +65,11 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
 
   // Match setup form state
-  const [team1Name, setTeam1Name] = useState('Alpha Seekers');
+  const [team1Name, setTeam1Name] = useState(() => language === 'pt' ? 'Buscadores Alfa' : 'Alpha Seekers');
   const [team1Faction, setTeam1Faction] = useState<FactionId>('COSMIC_BOWLERS');
   const [team1Color, setTeam1Color] = useState('#34d399');
 
-  const [team2Name, setTeam2Name] = useState('Omega Archons');
+  const [team2Name, setTeam2Name] = useState(() => language === 'pt' ? 'Arcontes Ômega' : 'Omega Archons');
   const [team2Faction, setTeam2Faction] = useState<FactionId>('ARCHONS');
   const [team2Color, setTeam2Color] = useState('#fbbf24');
 
@@ -150,7 +150,7 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
           <button
             onClick={onOpenSettings}
             className="p-2 bg-slate-900 border-2 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center shadow-md arcade-btn"
-            title="Settings"
+            title={getTranslation(language, 'settings')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -380,7 +380,7 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
                 {/* Team 2 */}
                 <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
                   <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    {selectedMode === 'SINGLE_PLAYER_AI' ? 'CPU Opponent' : getTranslation(language, 'team2Name')}
+                    {selectedMode === 'SINGLE_PLAYER_AI' ? getTranslation(language, 'cpuOpponent') : getTranslation(language, 'team2Name')}
                   </label>
                   <input
                     type="text"

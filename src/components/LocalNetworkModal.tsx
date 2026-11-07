@@ -415,7 +415,9 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               }`}
             >
               <Radio className="w-4 h-4 text-purple-400" />
-              <span>{getTranslation(language, 'hostGame')} (Servidor)</span>
+              <span>
+                {getTranslation(language, 'hostGame')} ({language === 'pt' ? 'Servidor' : 'Host'})
+              </span>
             </button>
             <button
               onClick={() => {
@@ -429,7 +431,9 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               }`}
             >
               <Users className="w-4 h-4 text-amber-400" />
-              <span>{getTranslation(language, 'joinGame')} (Cliente)</span>
+              <span>
+                {getTranslation(language, 'joinGame')} ({language === 'pt' ? 'Cliente' : 'Client'})
+              </span>
             </button>
           </div>
         )}
@@ -498,7 +502,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                     <button
                       onClick={handleCopyHostIp}
                       className="p-1 hover:text-white transition-colors"
-                      title="Copiar IP"
+                      title={language === 'pt' ? 'Copiar IP' : 'Copy IP'}
                     >
                       {copiedIp ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -592,7 +596,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                       type="button"
                       onClick={handleCopyHostIp}
                       className="px-3 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 text-xs flex items-center gap-1"
-                      title="Copiar IP"
+                      title={language === 'pt' ? 'Copiar IP' : 'Copy IP'}
                     >
                       {copiedIp ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -788,7 +792,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   maxLength={6}
                   value={joinCodeInput}
                   onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                  placeholder="e.g. 7K9P"
+                  placeholder={language === 'pt' ? 'ex: 7K9P' : 'e.g. 7K9P'}
                   className="w-48 mx-auto px-4 py-2.5 rounded-2xl bg-slate-900 border-2 border-purple-500 text-center text-2xl font-mono font-black tracking-widest text-amber-300 outline-none focus:border-amber-400 placeholder:text-slate-700 uppercase"
                 />
                 <p className="text-[11px] text-slate-400">
