@@ -23,6 +23,7 @@ import { FactionId, Language, MapId } from '../types/game';
 import { FACTIONS, MAPS } from '../services/gameConstants';
 import { getTranslation } from '../services/localization';
 import {
+  CLOUD_SERVER_URL,
   NetworkMatchConfig,
   NetworkPlayerInfo,
   NetworkRoomSettings,
@@ -56,6 +57,13 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   const [turnTimeLimit, setTurnTimeLimit] = useState<number>(45);
 
   // Connection & Room State
+  const cloudDefaultUrl = (() => {
+    if (typeof window !== 'undefined' && window.location.origin && !window.location.hostname.includes('localhost')) {
+      return window.location.origin;
+    }
+    return CLOUD_SERVER_URL;
+  })();
+
   const initialNativeIp = (() => {
     if (typeof window !== 'undefined' && (window as any).AndroidDevice?.getDeviceLocalIp) {
       try {
@@ -70,19 +78,14 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
 
   const [localNetworkIp, setLocalNetworkIp] = useState<string>(initialNativeIp);
   const [isDetectingIp, setIsDetectingIp] = useState<boolean>(false);
+  const [serverMode, setServerMode] = useState<'CLOUD' | 'CUSTOM'>('CLOUD');
 
   const [serverUrl, setServerUrl] = useState<string>(() => {
     const saved = networkService.getSavedServerUrl();
-    if (saved) {
+    if (saved && !saved.includes('localhost') && !saved.includes('127.0.0.1')) {
       return saved;
     }
-    if (initialNativeIp) {
-      return `http://${initialNativeIp}:3000`;
-    }
-    if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
-      return window.location.origin;
-    }
-    return '';
+    return cloudDefaultUrl;
   });
   const [roomCode, setRoomCode] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState<string>('');
@@ -99,17 +102,9 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   const refreshNetworkIp = async () => {
     setIsDetectingIp(true);
     try {
-      const info = await networkService.fetchLocalNetworkInfo();
-      if (info && info.localIp) {
-        setLocalNetworkIp(info.localIp);
-        setServerUrl((prev) => {
-          if (!prev || prev.includes('localhost') || prev.includes('127.0.0.1')) {
-            const upgraded = info.localUrl || `http://${info.localIp}:3000`;
-            networkService.setServerUrl(upgraded);
-            return upgraded;
-          }
-          return prev;
-        });
+      const ip = await networkService.detectDeviceLocalIp();
+      if (ip) {
+        setLocalNetworkIp(ip);
       }
     } finally {
       setIsDetectingIp(false);
@@ -216,7 +211,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
     
-    const targetUrl = (serverUrl || '').trim();
+    const targetUrl = serverMode === 'CLOUD' ? cloudDefaultUrl : (serverUrl || '').trim();
     if (targetUrl) {
       networkService.setServerUrl(targetUrl);
       setServerUrl(networkService.getServerUrl());
@@ -231,11 +226,11 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     const success = await networkService.createRoom(playerName, selectedFaction, settings);
     if (!success) {
       setIsConnecting(false);
-      const attempted = networkService.getServerUrl() || targetUrl || 'http://localhost:3000';
+      const attempted = networkService.getServerUrl() || targetUrl || cloudDefaultUrl;
       setErrorMessage(
         language === 'pt'
-          ? `Falha ao conectar no servidor (${attempted}). Verifique se o servidor está iniciado e se ambos os aparelhos estão no mesmo Wi-Fi.`
-          : `Could not reach server at (${attempted}). Verify the server is running and both devices share the same Wi-Fi.`
+          ? `Falha ao conectar no servidor (${attempted}). Se estiver usando o modo PC Local, certifique-se de que o computador está rodando o servidor.`
+          : `Could not reach server at (${attempted}). If using Local PC mode, make sure the host computer is running the server.`
       );
     }
   };
@@ -250,7 +245,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setErrorMessage(null);
     setStatusMessage(getTranslation(language, 'connectingToHost'));
 
-    const targetUrl = (serverUrl || '').trim();
+    const targetUrl = serverMode === 'CLOUD' ? cloudDefaultUrl : (serverUrl || '').trim();
     if (targetUrl) {
       networkService.setServerUrl(targetUrl);
       setServerUrl(networkService.getServerUrl());
@@ -264,11 +259,11 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
 
     if (!success) {
       setIsConnecting(false);
-      const attempted = networkService.getServerUrl() || targetUrl || 'http://localhost:3000';
+      const attempted = networkService.getServerUrl() || targetUrl || cloudDefaultUrl;
       setErrorMessage(
         language === 'pt'
-          ? `Falha ao conectar ao servidor da rede (${attempted}). Verifique o IP do anfitrião e o código da sala.`
-          : `Failed to connect to host server at (${attempted}). Verify host IP and room code.`
+          ? `Falha ao conectar ao servidor da rede (${attempted}). Verifique se a sala existe ou se o código está correto.`
+          : `Failed to connect to host server at (${attempted}). Check room code or server status.`
       );
     }
   };
@@ -370,9 +365,26 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
         <div className="p-4 sm:p-6 overflow-y-auto max-h-[70vh] space-y-4 scrollbar-thin scrollbar-thumb-purple-900 flex-1">
           {/* Error Banner */}
           {errorMessage && (
-            <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2.5 animate-in fade-in">
-              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex flex-col gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+                <span className="flex-1">{errorMessage}</span>
+              </div>
+              {serverMode === 'CUSTOM' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setServerMode('CLOUD');
+                    setServerUrl(cloudDefaultUrl);
+                    networkService.setServerUrl(cloudDefaultUrl);
+                    setErrorMessage(null);
+                  }}
+                  className="py-1.5 px-3 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all self-start"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>{language === 'pt' ? 'Mudar para Servidor Nuvem Oficial' : 'Switch to Official Cloud Server'}</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -559,107 +571,85 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                 </div>
               </div>
 
-              {/* Server Host IP Setting (Collapsible / Advanced) */}
-              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-[11px] font-mono text-slate-400 block">
-                      {getTranslation(language, 'serverAddress')}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={refreshNetworkIp}
-                      className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-900/40 transition-colors"
-                      title={language === 'pt' ? 'Redetectar IP' : 'Re-detect IP'}
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isDetectingIp ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                  {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/40">
-                      Wi-Fi IP: {localNetworkIp}
-                    </span>
-                  )}
+              {/* Server Host Mode Setting */}
+              <div className="space-y-2">
+                <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerMode('CLOUD');
+                      setServerUrl(cloudDefaultUrl);
+                      networkService.setServerUrl(cloudDefaultUrl);
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      serverMode === 'CLOUD'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>{language === 'pt' ? 'Servidor Nuvem (Recomendado)' : 'Cloud Server (Recommended)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerMode('CUSTOM');
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      serverMode === 'CUSTOM'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Wifi className="w-3.5 h-3.5" />
+                    <span>{language === 'pt' ? 'Servidor PC Local' : 'Local PC Server'}</span>
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="http://192.168.1.X:3000"
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
-                />
 
-                {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = `http://${localNetworkIp}:3000`;
-                        setServerUrl(target);
-                        networkService.setServerUrl(target);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-500/40 font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
-                    >
-                      <span>✓ {language === 'pt' ? 'Aplicar IP Local:' : 'Use Local Wi-Fi IP:'}</span>
-                      <span className="underline">http://{localNetworkIp}:3000</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Localhost Warning & Quick-Fix Helper */}
-                {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
-                  <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
-                    <p className="leading-tight">
-                      {language === 'pt'
-                        ? '⚠️ "localhost" só funciona neste aparelho. Para o outro celular se conectar pelo mesmo Wi-Fi, use o IP local da sua rede:'
-                        : '⚠️ "localhost" only works on this single device. For the other mobile to join over Wi-Fi, use your local network IP:'}
-                    </p>
-                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = `http://${localNetworkIp}:3000`;
-                          setServerUrl(target);
-                          networkService.setServerUrl(target);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
-                      >
-                        <span>✓ {language === 'pt' ? 'Preencher com IP Local:' : 'Set Local Wi-Fi IP:'}</span>
-                        <span className="underline">http://{localNetworkIp}:3000</span>
-                      </button>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="text-[10px] text-slate-400 font-mono">
+                {serverMode === 'CLOUD' ? (
+                  <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 text-xs flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="font-bold block">
+                          {language === 'pt' ? 'Servidor Oficial Ativo' : 'Official Server Active'}
+                        </span>
+                        <span className="text-[10px] text-emerald-300/80">
                           {language === 'pt'
-                            ? 'Dica: Digite o IP do Wi-Fi do seu aparelho (ex: http://192.168.1.50:3000)'
-                            : 'Hint: Enter your device Wi-Fi IP (e.g. http://192.168.1.50:3000)'}
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] text-slate-400">{language === 'pt' ? 'Atalhos:' : 'Subnet pre-fill:'}</span>
-                          {['192.168.1.', '192.168.0.', '10.0.0.'].map((prefix) => (
-                            <button
-                              key={prefix}
-                              type="button"
-                              onClick={() => {
-                                const target = `http://${prefix}`;
-                                setServerUrl(target);
-                              }}
-                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
-                            >
-                              http://{prefix}...
-                            </button>
-                          ))}
-                        </div>
+                            ? 'Funciona direto no celular e PC sem configurar nada!'
+                            : 'Works on phones and PC without manual configuration!'}
+                        </span>
                       </div>
-                    )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <label className="text-[11px] font-mono text-slate-400 block">
+                        {language === 'pt' ? 'IP do Computador Host (Porta 3000):' : 'Host PC IP (Port 3000):'}
+                      </label>
+                      {localNetworkIp && (
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {language === 'pt' ? 'IP deste aparelho:' : 'Device IP:'} {localNetworkIp}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={serverUrl}
+                      onChange={(e) => setServerUrl(e.target.value)}
+                      placeholder="http://192.168.1.50:3000"
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
+                    />
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {language === 'pt'
+                        ? '💡 Use esta opção se você estiver executando o jogo no terminal de um computador (npm run dev). Digite o IP daquele computador na rede Wi-Fi.'
+                        : '💡 Use this only if you run the game server on your PC via terminal (npm run dev). Enter that computer’s IP address.'}
+                    </p>
                   </div>
                 )}
-
-                <p className="text-[10px] text-slate-500 leading-tight">
-                  {language === 'pt'
-                    ? 'Detectado automaticamente. Se ambos os celulares estiverem no mesmo Wi-Fi, este endereço conecta a sala.'
-                    : 'Auto-detected. When both phones share the same Wi-Fi, this address links the match.'}
-                </p>
               </div>
 
               {/* CTA Create Room */}
@@ -735,98 +725,80 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                 </p>
               </div>
 
-              {/* Host Address Input */}
-              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-[11px] font-mono text-slate-400 block">
-                      {getTranslation(language, 'serverAddress')}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={refreshNetworkIp}
-                      className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-900/40 transition-colors"
-                      title={language === 'pt' ? 'Redetectar IP' : 'Re-detect IP'}
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isDetectingIp ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                  {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/40">
-                      Detected: {localNetworkIp}
-                    </span>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="http://192.168.1.X:3000"
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
-                />
-
-                {/* Subnet helper buttons */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                    <span className="text-[10px] text-slate-400">
-                      {language === 'pt' ? 'Atalhos de rede:' : 'Subnet shortcuts:'}
-                    </span>
-                    {Array.from(
-                      new Set(
-                        [
-                          localNetworkIp && localNetworkIp.includes('.')
-                            ? localNetworkIp.split('.').slice(0, 3).join('.') + '.'
-                            : '',
-                          '192.168.1.',
-                          '192.168.0.',
-                          '10.0.0.',
-                        ].filter(Boolean)
-                      )
-                    ).map((prefix) => (
-                      <button
-                        key={prefix}
-                        type="button"
-                        onClick={() => {
-                          const target = `http://${prefix}`;
-                          setServerUrl(target);
-                        }}
-                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
-                      >
-                        http://{prefix}...
-                      </button>
-                    ))}
-                  </div>
+              {/* Server Join Mode Setting */}
+              <div className="space-y-2">
+                <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerMode('CLOUD');
+                      setServerUrl(cloudDefaultUrl);
+                      networkService.setServerUrl(cloudDefaultUrl);
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      serverMode === 'CLOUD'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>{language === 'pt' ? 'Servidor Nuvem (Recomendado)' : 'Cloud Server (Recommended)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerMode('CUSTOM');
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      serverMode === 'CUSTOM'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Wifi className="w-3.5 h-3.5" />
+                    <span>{language === 'pt' ? 'Servidor PC Local' : 'Local PC Server'}</span>
+                  </button>
                 </div>
 
-                {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
-                  <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
-                    <p className="leading-tight">
+                {serverMode === 'CLOUD' ? (
+                  <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 text-xs flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="font-bold block">
+                          {language === 'pt' ? 'Conectado ao Servidor Oficial' : 'Connected to Official Server'}
+                        </span>
+                        <span className="text-[10px] text-emerald-300/80">
+                          {language === 'pt'
+                            ? 'Basta digitar o código da sala de 4 letras acima para entrar!'
+                            : 'Just enter the 4-letter room code above to join!'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <label className="text-[11px] font-mono text-slate-400 block">
+                        {language === 'pt' ? 'IP do Computador Host (Porta 3000):' : 'Host PC IP (Port 3000):'}
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      value={serverUrl}
+                      onChange={(e) => setServerUrl(e.target.value)}
+                      placeholder="http://192.168.1.50:3000"
+                      className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
+                    />
+                    <p className="text-[10px] text-slate-500 leading-tight">
                       {language === 'pt'
-                        ? '⚠️ Digite o IP do Wi-Fi do celular anfitrião (ex: http://192.168.1.50:3000):'
-                        : '⚠️ Enter the host mobile’s Wi-Fi IP (e.g. http://192.168.1.50:3000):'}
+                        ? 'O endereço IP local do computador host onde o servidor está rodando'
+                        : 'The local IP address of the host computer running the server'}
                     </p>
-                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = `http://${localNetworkIp}:3000`;
-                          setServerUrl(target);
-                          networkService.setServerUrl(target);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
-                      >
-                        <span>✓ {language === 'pt' ? 'Usar IP Local:' : 'Use Local IP:'}</span>
-                        <span className="underline">http://{localNetworkIp}:3000</span>
-                      </button>
-                    )}
                   </div>
                 )}
-
-                <p className="text-[10px] text-slate-500 leading-tight">
-                  {language === 'pt'
-                    ? 'O endereço IP local do aparelho anfitrião na rede Wi-Fi'
-                    : 'The local IP address of the host device on your home network'}
-                </p>
               </div>
 
               {/* CTA Join */}

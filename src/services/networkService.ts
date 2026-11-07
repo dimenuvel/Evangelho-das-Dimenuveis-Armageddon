@@ -34,6 +34,9 @@ export interface NetworkGameAction {
 
 type EventCallback<T = any> = (data: T) => void;
 
+export const CLOUD_SERVER_URL =
+  'https://ais-dev-ymazscmjg4vmlr3vprgv2q-852308530209.us-east1.run.app';
+
 class NetworkService {
   private ws: WebSocket | null = null;
   private currentRoomCode: string | null = null;
@@ -50,17 +53,7 @@ class NetworkService {
 
   public detectDefaultServerUrl(): string {
     if (typeof window !== 'undefined') {
-      // 1. Android native bridge in APK
-      if ((window as any).AndroidDevice?.getDeviceLocalIp) {
-        try {
-          const nativeIp = (window as any).AndroidDevice.getDeviceLocalIp();
-          if (nativeIp && typeof nativeIp === 'string' && nativeIp.trim().length > 0) {
-            return `http://${nativeIp.trim()}:3000`;
-          }
-        } catch {}
-      }
-
-      // 2. Web browser origin
+      // 1. Web browser on hosted domain (Cloud Run / AI Studio preview)
       if (
         window.location &&
         window.location.origin &&
@@ -71,7 +64,8 @@ class NetworkService {
         return window.location.origin;
       }
     }
-    return '';
+    // 2. Default to the cloud WebSocket server so Android APK can play immediately
+    return CLOUD_SERVER_URL;
   }
 
   public getSavedServerUrl(): string {
@@ -118,7 +112,26 @@ class NetworkService {
   }
 
   public getWsUrl(): string {
+    const isCap = typeof window !== 'undefined' && (
+      typeof (window as any).Capacitor !== 'undefined' ||
+      typeof (window as any).AndroidDevice !== 'undefined' ||
+      window.location.hostname === 'localhost' ||
+      window.location.protocol === 'capacitor:' ||
+      window.location.protocol === 'ionic:'
+    );
+    const isHttpsBrowser = typeof window !== 'undefined' && window.location.protocol === 'https:' && !isCap;
+
     let url = (this.serverUrl || '').trim();
+
+    // If running in an HTTPS web browser (e.g. Cloud Run, AI Studio preview):
+    // Insecure http:// or ws:// is strictly blocked by modern browser security.
+    // Connect directly to the live WebSocket server running on the current HTTPS domain.
+    if (isHttpsBrowser) {
+      if (!url || url.startsWith('http://') || url.startsWith('ws://') || url.includes('localhost') || url.includes('127.0.0.1')) {
+        return `wss://${window.location.host}`;
+      }
+    }
+
     if (!url) {
       url = this.detectDefaultServerUrl();
     }
@@ -136,14 +149,7 @@ class NetworkService {
       return `ws://${url}`;
     }
 
-    // Fallback if no URL was set or detected
-    if (
-      typeof window !== 'undefined' &&
-      window.location &&
-      window.location.protocol === 'https:' &&
-      !window.location.hostname.includes('localhost') &&
-      !window.location.hostname.includes('127.0.0.1')
-    ) {
+    if (isHttpsBrowser) {
       return `wss://${window.location.host}`;
     }
     return `ws://${(typeof window !== 'undefined' && window.location.hostname) || 'localhost'}:3000`;
