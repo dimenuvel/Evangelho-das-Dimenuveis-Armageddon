@@ -27,7 +27,18 @@ export interface NetworkMatchConfig {
 }
 
 export interface NetworkGameAction {
-  action: 'MOVE' | 'AIM' | 'WEAPON_SELECT' | 'FIRE' | 'JETPACK' | 'CYCLE_WARRIOR' | 'ADVANCE_TURN';
+  action:
+    | 'MOVE'
+    | 'AIM'
+    | 'WEAPON_SELECT'
+    | 'FIRE'
+    | 'JETPACK'
+    | 'CYCLE_WARRIOR'
+    | 'ADVANCE_TURN'
+    | 'TURN_ADVANCED'
+    | 'REQUEST_ADVANCE_TURN'
+    | 'CHARGE_START'
+    | 'START_RETREAT';
   data: any;
   sender?: string;
 }

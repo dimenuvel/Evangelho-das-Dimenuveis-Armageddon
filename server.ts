@@ -13,7 +13,37 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = Number(process.env.PORT) || 3000;
+// Process safety handlers to prevent dev server crashes on unhandled socket errors
+process.on('uncaughtException', (err) => {
+  console.warn('[Server] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server] Unhandled rejection:', reason);
+});
+
+// Resolve port strictly avoiding 8080 (which is reserved for Nginx ingress proxy in AI Studio)
+function resolvePort(): number {
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const val = Number(process.argv[portArgIdx + 1]);
+    if (!isNaN(val) && val > 0 && val !== 8080) return val;
+  }
+  if (process.env.APP_PORT) {
+    const val = Number(process.env.APP_PORT);
+    if (!isNaN(val) && val > 0 && val !== 8080) return val;
+  }
+  if (process.env.DEFAULT_APP_PORT) {
+    const val = Number(process.env.DEFAULT_APP_PORT);
+    if (!isNaN(val) && val > 0 && val !== 8080) return val;
+  }
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    const val = Number(process.env.PORT);
+    if (!isNaN(val) && val > 0) return val;
+  }
+  return 3000;
+}
+
+const PORT = resolvePort();
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -427,8 +457,10 @@ async function startServer() {
     const localIp = getLocalIpAddress();
     console.log(`> Evangelho das Dimenúveis: Armageddon Server running`);
     console.log(`> Local:   http://localhost:${PORT}`);
-    console.log(`> Network: http://${localIp}:${PORT}`);
+    console.log(`> Network: http://${localIp || 'localhost'}:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('[Server] Failed to bootstrap server:', err);
+});

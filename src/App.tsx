@@ -149,6 +149,42 @@ export default function App() {
     jetpack: false,
   });
 
+  // Synchronization refs for network game loop without stale closures
+  const charactersRef = useRef<Character[]>(characters);
+  const activeCharIdRef = useRef<string | null>(activeCharId);
+  const activeTeamIdxRef = useRef<number>(activeTeamIdx);
+  const teamsRef = useRef<Team[]>(teams);
+  const turnPhaseRef = useRef<'AIMING' | 'FIRING' | 'IMPACT_SETTLING' | 'RETREAT'>(turnPhase);
+  const gameModeRef = useRef<GameMode>(gameMode);
+  const networkRoleRef = useRef<'HOST' | 'GUEST' | null>(networkRole);
+  const isMyNetworkTurnRef = useRef<boolean>(isMyNetworkTurn);
+  const lastMoveSyncTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    charactersRef.current = characters;
+  }, [characters]);
+  useEffect(() => {
+    activeCharIdRef.current = activeCharId;
+  }, [activeCharId]);
+  useEffect(() => {
+    activeTeamIdxRef.current = activeTeamIdx;
+  }, [activeTeamIdx]);
+  useEffect(() => {
+    teamsRef.current = teams;
+  }, [teams]);
+  useEffect(() => {
+    turnPhaseRef.current = turnPhase;
+  }, [turnPhase]);
+  useEffect(() => {
+    gameModeRef.current = gameMode;
+  }, [gameMode]);
+  useEffect(() => {
+    networkRoleRef.current = networkRole;
+  }, [networkRole]);
+  useEffect(() => {
+    isMyNetworkTurnRef.current = isMyNetworkTurn;
+  }, [isMyNetworkTurn]);
+
   // Dynamic entities
   const projectilesRef = useRef<Projectile[]>([]);
   const [activeProjectiles, setActiveProjectiles] = useState<Projectile[]>([]);
@@ -206,11 +242,22 @@ export default function App() {
   // Listen to remote actions in Local Network mode
   useEffect(() => {
     const unsubAction = networkService.on('gameAction', (payload: any) => {
-      if (gameMode !== 'LOCAL_NETWORK') return;
+      if (gameModeRef.current !== 'LOCAL_NETWORK') return;
 
       const { action, data } = payload;
       switch (action) {
-        case 'MOVE':
+        case 'MOVE': {
+          const currentChars = charactersRef.current;
+          const targetChar = currentChars.find(
+            (c) => c.id === (data.charId || activeCharIdRef.current)
+          );
+          if (targetChar) {
+            if (typeof data.x === 'number') targetChar.x = data.x;
+            if (typeof data.y === 'number') targetChar.y = data.y;
+            if (typeof data.vx === 'number') targetChar.vx = data.vx;
+            if (typeof data.vy === 'number') targetChar.vy = data.vy;
+            if (typeof data.facing === 'number') targetChar.facing = data.facing;
+          }
           moveInputRef.current = {
             left: !!data.left,
             right: !!data.right,
@@ -219,35 +266,43 @@ export default function App() {
             jetpack: !!data.jetpack,
           };
           if (data.jetpack !== undefined) {
-            setIsJetpackActive(data.jetpack);
+            setIsJetpackActive(!!data.jetpack);
           }
-          if (data.x !== undefined || data.y !== undefined) {
-            const activeChar = characters.find((c) => c.id === activeCharId);
-            if (activeChar) {
-              if (data.x !== undefined) activeChar.x = data.x;
-              if (data.y !== undefined) activeChar.y = data.y;
-              if (data.facing !== undefined) activeChar.facing = data.facing;
-            }
+          if (data.jump) {
+            sound.playJump();
+          } else if (data.backflip) {
+            sound.playJump();
           }
           break;
+        }
 
-        case 'AIM':
-          if (data.angle !== undefined) {
+        case 'AIM': {
+          if (typeof data.angle === 'number') {
             setAimAngle(data.angle);
-            const activeChar = characters.find((c) => c.id === activeCharId);
-            if (activeChar && data.facing !== undefined) {
-              activeChar.facing = data.facing;
+            const currentChars = charactersRef.current;
+            const targetChar = currentChars.find(
+              (c) => c.id === (data.charId || activeCharIdRef.current)
+            );
+            if (targetChar && typeof data.facing === 'number') {
+              targetChar.facing = data.facing;
             }
           }
           break;
+        }
 
-        case 'WEAPON_SELECT':
+        case 'WEAPON_SELECT': {
           if (data.weaponId) {
             setSelectedWeaponId(data.weaponId);
           }
           break;
+        }
 
-        case 'CYCLE_WARRIOR':
+        case 'CHARGE_START': {
+          setIsCharging(true);
+          break;
+        }
+
+        case 'CYCLE_WARRIOR': {
           if (data.charId) {
             setActiveCharId(data.charId);
             sound.playClick();
@@ -255,30 +310,104 @@ export default function App() {
             setRecenterTrigger((c) => c + 1);
           }
           break;
+        }
 
-        case 'JETPACK':
+        case 'JETPACK': {
           setIsJetpackActive(!!data.active);
           moveInputRef.current.jetpack = !!data.active;
           break;
+        }
 
-        case 'FIRE':
+        case 'FIRE': {
+          setIsCharging(false);
           if (data.weaponId) {
             setSelectedWeaponId(data.weaponId);
           }
           fireCurrentWeapon(data.angle, data.power, data.targetX);
           break;
+        }
 
-        case 'ADVANCE_TURN':
-          if (data.wind !== undefined) {
-            setWind(data.wind);
+        case 'START_RETREAT': {
+          setIsRetreating(true);
+          setRetreatTimer(data.duration || 3);
+          setTurnPhase('RETREAT');
+          break;
+        }
+
+        case 'TURN_ADVANCED': {
+          const {
+            activeTeamIdx: newTeamIdx,
+            activeCharId: newCharId,
+            wind: newWind,
+            turnTimer: newTimer,
+            characters: syncedChars,
+          } = data;
+
+          if (typeof newTeamIdx === 'number') setActiveTeamIdx(newTeamIdx);
+          if (newCharId) setActiveCharId(newCharId);
+          if (typeof newWind === 'number') setWind(newWind);
+          setTurnTimer(typeof newTimer === 'number' ? newTimer : 45);
+          setTurnPhase('AIMING');
+          setIsRetreating(false);
+          setRetreatTimer(0);
+          setImpactPoint(null);
+          lastExplosionTimeRef.current = 0;
+          settlingStartTimeRef.current = 0;
+          pendingAirstrikesRef.current = 0;
+          hasRetreatedRef.current = false;
+          setIsMapPanned(false);
+          setRecenterTrigger((c) => c + 1);
+          setSelectedWeaponId('COSMIC_ROCKET');
+          setAirstrikeTargetX(null);
+          setIsCharging(false);
+          setIsJetpackActive(false);
+          moveInputRef.current = {
+            left: false,
+            right: false,
+            jump: false,
+            backflip: false,
+            jetpack: false,
+          };
+
+          if (Array.isArray(syncedChars)) {
+            const currentChars = charactersRef.current;
+            syncedChars.forEach((sc: any) => {
+              const match = currentChars.find((c) => c.id === sc.id);
+              if (match) {
+                match.x = sc.x;
+                match.y = sc.y;
+                match.hp = sc.hp;
+                match.isDead = sc.isDead;
+                match.facing = sc.facing;
+                match.vx = 0;
+                match.vy = 0;
+              }
+            });
+            setCharacters([...currentChars]);
+          }
+
+          const activeC = charactersRef.current.find((c) => c.id === newCharId);
+          if (activeC) {
+            setAimAngle(activeC.facing === 1 ? 45 : 135);
+          }
+          sound.playHolyChime();
+          break;
+        }
+
+        case 'REQUEST_ADVANCE_TURN': {
+          // Authoritative host advances turn on guest request
+          if (networkRoleRef.current === 'HOST' || networkService.getRole() === 'HOST') {
+            advanceTurn();
           }
           break;
+        }
       }
     });
 
     const unsubSync = networkService.on('syncState', (payload: any) => {
       if (payload.characters && Array.isArray(payload.characters)) {
         setCharacters(payload.characters);
+        charactersRef.current = payload.characters;
       }
       if (payload.wind !== undefined) {
         setWind(payload.wind);
@@ -286,10 +415,13 @@ export default function App() {
       if (payload.activeCharId) {
         setActiveCharId(payload.activeCharId);
       }
+      if (payload.activeTeamIdx !== undefined) {
+        setActiveTeamIdx(payload.activeTeamIdx);
+      }
     });
 
     const unsubDisconnect = networkService.on('opponentDisconnected', () => {
-      if (gameMode === 'LOCAL_NETWORK') {
+      if (gameModeRef.current === 'LOCAL_NETWORK') {
         setAnnouncement(
           settings.language === 'pt'
             ? '⚠️ Oponente desconectado da rede Wi-Fi local'
@@ -304,7 +436,7 @@ export default function App() {
       unsubSync();
       unsubDisconnect();
     };
-  }, [gameMode, activeCharId, characters, settings.language]);
+  }, [settings.language]);
 
   // Launch Local Network Match
   const handleLaunchNetworkMatch = (config: NetworkMatchConfig) => {
@@ -543,6 +675,15 @@ export default function App() {
   const advanceTurn = () => {
     if (isGameOverOpen) return;
 
+    // In Local Network mode, Guest requests the Host to advance the turn
+    if (
+      gameModeRef.current === 'LOCAL_NETWORK' &&
+      (networkRoleRef.current === 'GUEST' || networkService.getRole() === 'GUEST')
+    ) {
+      networkService.sendGameAction('REQUEST_ADVANCE_TURN', {});
+      return;
+    }
+
     // Check victory condition first
     const livingT1 = characters.filter((c) => c.teamId === teams[0]?.id && !c.isDead);
     const livingT2 = characters.filter((c) => c.teamId === teams[1]?.id && !c.isDead);
@@ -578,13 +719,47 @@ export default function App() {
 
     // Reroll wind
     const newWind = Math.floor((Math.random() - 0.5) * 160);
-    if (gameMode === 'LOCAL_NETWORK' && (networkRole === 'HOST' || networkService.getRole() === 'HOST')) {
-      networkService.sendGameAction('ADVANCE_TURN', { wind: newWind });
-    }
     setWind(newWind);
 
     // Reset turn timer
-    setTurnTimer(settings.turnTimeLimit > 0 ? settings.turnTimeLimit : 0);
+    const defaultTimer = settings.turnTimeLimit > 0 ? settings.turnTimeLimit : 45;
+    setTurnTimer(defaultTimer);
+    setIsRetreating(false);
+    setRetreatTimer(0);
+    setTurnPhase('AIMING');
+    setImpactPoint(null);
+    lastExplosionTimeRef.current = 0;
+    settlingStartTimeRef.current = 0;
+    pendingAirstrikesRef.current = 0;
+    hasRetreatedRef.current = false;
+    setIsMapPanned(false);
+    setRecenterTrigger((c) => c + 1);
+    setSelectedWeaponId('COSMIC_ROCKET');
+    setAirstrikeTargetX(null);
+    setTotalTurnsCount((c) => c + 1);
+
+    // Broadcast authoritative turn advance to Guest in Local Network mode
+    if (
+      gameModeRef.current === 'LOCAL_NETWORK' &&
+      (networkRoleRef.current === 'HOST' || networkService.getRole() === 'HOST')
+    ) {
+      const charSummaries = characters.map((c) => ({
+        id: c.id,
+        teamId: c.teamId,
+        x: Math.round(c.x),
+        y: Math.round(c.y),
+        hp: c.hp,
+        isDead: c.isDead,
+        facing: c.facing,
+      }));
+      networkService.sendGameAction('TURN_ADVANCED', {
+        activeTeamIdx: nextTeamIdx,
+        activeCharId: nextChar.id,
+        wind: newWind,
+        turnTimer: defaultTimer,
+        characters: charSummaries,
+      });
+    }
     setIsRetreating(false);
     setRetreatTimer(0);
     setTurnPhase('AIMING');
@@ -910,6 +1085,35 @@ export default function App() {
         if (moveRes.diedInVoid) {
           setVoidElimsCount((c) => c + 1);
         }
+
+        // Real-time continuous movement streaming in Local Network mode during active turn
+        if (
+          gameModeRef.current === 'LOCAL_NETWORK' &&
+          isMyNetworkTurnRef.current &&
+          (moveInputRef.current.left ||
+            moveInputRef.current.right ||
+            moveInputRef.current.jetpack ||
+            Math.abs(activeChar.vx) > 0.05 ||
+            !activeChar.isGrounded)
+        ) {
+          const now = performance.now();
+          if (now - lastMoveSyncTimeRef.current >= 60) {
+            lastMoveSyncTimeRef.current = now;
+            networkService.sendGameAction('MOVE', {
+              charId: activeChar.id,
+              left: moveInputRef.current.left,
+              right: moveInputRef.current.right,
+              jump: moveInputRef.current.jump,
+              backflip: moveInputRef.current.backflip,
+              jetpack: moveInputRef.current.jetpack,
+              x: Math.round(activeChar.x * 10) / 10,
+              y: Math.round(activeChar.y * 10) / 10,
+              vx: Math.round(activeChar.vx * 10) / 10,
+              vy: Math.round(activeChar.vy * 10) / 10,
+              facing: activeChar.facing,
+            });
+          }
+        }
       }
 
       // Update passive characters' physics (gravity, ground settling)
@@ -994,6 +1198,12 @@ export default function App() {
               setIsRetreating(true);
               setRetreatTimer(3);
               setTurnPhase('RETREAT');
+              if (
+                gameModeRef.current === 'LOCAL_NETWORK' &&
+                (networkRoleRef.current === 'HOST' || networkService.getRole() === 'HOST')
+              ) {
+                networkService.sendGameAction('START_RETREAT', { duration: 3 });
+              }
             } else {
               setImpactPoint(null);
               advanceTurn();
@@ -1135,25 +1345,165 @@ export default function App() {
         return;
       }
 
-      if (e.key === 'ArrowLeft' || e.key === 'a') moveInputRef.current.left = true;
-      if (e.key === 'ArrowRight' || e.key === 'd') moveInputRef.current.right = true;
-      if (e.key === 'ArrowUp' || e.key === 'w') moveInputRef.current.jump = true;
-      if (e.key === 's') moveInputRef.current.backflip = true;
-      if (e.key === 'j') setIsJetpackActive((p) => !p);
+      if (e.key === 'ArrowLeft' || e.key === 'a') {
+        moveInputRef.current.left = true;
+        moveInputRef.current.right = false;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: true,
+            right: false,
+            jump: moveInputRef.current.jump,
+            backflip: moveInputRef.current.backflip,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: activeChar.vx,
+            vy: activeChar.vy,
+            facing: -1,
+          });
+        }
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd') {
+        moveInputRef.current.right = true;
+        moveInputRef.current.left = false;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: false,
+            right: true,
+            jump: moveInputRef.current.jump,
+            backflip: moveInputRef.current.backflip,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: activeChar.vx,
+            vy: activeChar.vy,
+            facing: 1,
+          });
+        }
+      }
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        moveInputRef.current.jump = true;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: moveInputRef.current.left,
+            right: moveInputRef.current.right,
+            jump: true,
+            backflip: false,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: activeChar.vx,
+            vy: activeChar.vy,
+            facing: activeChar.facing,
+          });
+        }
+      }
+      if (e.key === 's') {
+        moveInputRef.current.backflip = true;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: moveInputRef.current.left,
+            right: moveInputRef.current.right,
+            jump: false,
+            backflip: true,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: activeChar.vx,
+            vy: activeChar.vy,
+            facing: activeChar.facing,
+          });
+        }
+      }
+      if (e.key === 'j') {
+        setIsJetpackActive((p) => {
+          const next = !p;
+          moveInputRef.current.jetpack = next;
+          if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+            networkService.sendGameAction('JETPACK', { active: next });
+          }
+          return next;
+        });
+      }
 
-      if (e.key === 'q') setAimAngle((a) => Math.max(5, a - 3));
-      if (e.key === 'e') setAimAngle((a) => Math.min(175, a + 3));
+      if (e.key === 'q') {
+        setAimAngle((a) => {
+          const next = Math.max(5, a - 3);
+          if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+            networkService.sendGameAction('AIM', {
+              charId: activeChar.id,
+              angle: next,
+              facing: next <= 90 ? 1 : -1,
+            });
+          }
+          return next;
+        });
+      }
+      if (e.key === 'e') {
+        setAimAngle((a) => {
+          const next = Math.min(175, a + 3);
+          if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+            networkService.sendGameAction('AIM', {
+              charId: activeChar.id,
+              angle: next,
+              facing: next <= 90 ? 1 : -1,
+            });
+          }
+          return next;
+        });
+      }
 
       if (e.key === ' ' && !isCharging && turnPhase === 'AIMING') {
         handleStartCharge();
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
+          networkService.sendGameAction('CHARGE_START', {});
+        }
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (view !== 'MATCH' || isPaused || activeTeam?.isAI || isRemoteOpponentTurn) return;
 
-      if (e.key === 'ArrowLeft' || e.key === 'a') moveInputRef.current.left = false;
-      if (e.key === 'ArrowRight' || e.key === 'd') moveInputRef.current.right = false;
+      if (e.key === 'ArrowLeft' || e.key === 'a') {
+        moveInputRef.current.left = false;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: false,
+            right: moveInputRef.current.right,
+            jump: moveInputRef.current.jump,
+            backflip: moveInputRef.current.backflip,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: 0,
+            vy: activeChar.vy,
+            facing: activeChar.facing,
+          });
+        }
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd') {
+        moveInputRef.current.right = false;
+        if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn && activeChar) {
+          networkService.sendGameAction('MOVE', {
+            charId: activeChar.id,
+            left: moveInputRef.current.left,
+            right: false,
+            jump: moveInputRef.current.jump,
+            backflip: moveInputRef.current.backflip,
+            jetpack: moveInputRef.current.jetpack,
+            x: activeChar.x,
+            y: activeChar.y,
+            vx: 0,
+            vy: activeChar.vy,
+            facing: activeChar.facing,
+          });
+        }
+      }
       if (e.key === 'ArrowUp' || e.key === 'w') moveInputRef.current.jump = false;
       if (e.key === 's') moveInputRef.current.backflip = false;
 
@@ -1271,6 +1621,9 @@ export default function App() {
               onStartCharge={() => {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 handleStartCharge();
+                if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
+                  networkService.sendGameAction('CHARGE_START', {});
+                }
               }}
               onReleaseCharge={() => {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
@@ -1279,22 +1632,15 @@ export default function App() {
               onFireDirect={() => {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 fireCurrentWeapon();
-                if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
-                  const activeChar = characters.find((c) => c.id === activeCharId);
-                  networkService.sendGameAction('FIRE', {
-                    angle: aimAngle,
-                    power: aimPower,
-                    targetX: airstrikeTargetX ?? (activeChar ? activeChar.x + activeChar.facing * 180 : 0),
-                    weaponId: selectedWeaponId,
-                  });
-                }
               }}
               onMoveLeftStart={() => {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 moveInputRef.current.left = true;
+                moveInputRef.current.right = false;
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
                   const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: true,
                     right: false,
                     jump: moveInputRef.current.jump,
@@ -1302,7 +1648,9 @@ export default function App() {
                     jetpack: moveInputRef.current.jetpack,
                     x: activeChar?.x,
                     y: activeChar?.y,
-                    facing: activeChar?.facing,
+                    vx: activeChar?.vx,
+                    vy: activeChar?.vy,
+                    facing: -1,
                   });
                 }
               }}
@@ -1312,6 +1660,7 @@ export default function App() {
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
                   const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: false,
                     right: moveInputRef.current.right,
                     jump: moveInputRef.current.jump,
@@ -1319,6 +1668,8 @@ export default function App() {
                     jetpack: moveInputRef.current.jetpack,
                     x: activeChar?.x,
                     y: activeChar?.y,
+                    vx: 0,
+                    vy: activeChar?.vy,
                     facing: activeChar?.facing,
                   });
                 }
@@ -1326,9 +1677,11 @@ export default function App() {
               onMoveRightStart={() => {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 moveInputRef.current.right = true;
+                moveInputRef.current.left = false;
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
                   const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: false,
                     right: true,
                     jump: moveInputRef.current.jump,
@@ -1336,7 +1689,9 @@ export default function App() {
                     jetpack: moveInputRef.current.jetpack,
                     x: activeChar?.x,
                     y: activeChar?.y,
-                    facing: activeChar?.facing,
+                    vx: activeChar?.vx,
+                    vy: activeChar?.vy,
+                    facing: 1,
                   });
                 }
               }}
@@ -1346,6 +1701,7 @@ export default function App() {
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
                   const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: moveInputRef.current.left,
                     right: false,
                     jump: moveInputRef.current.jump,
@@ -1353,6 +1709,8 @@ export default function App() {
                     jetpack: moveInputRef.current.jetpack,
                     x: activeChar?.x,
                     y: activeChar?.y,
+                    vx: 0,
+                    vy: activeChar?.vy,
                     facing: activeChar?.facing,
                   });
                 }
@@ -1361,12 +1719,19 @@ export default function App() {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 moveInputRef.current.jump = true;
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
+                  const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: moveInputRef.current.left,
                     right: moveInputRef.current.right,
                     jump: true,
                     backflip: false,
                     jetpack: moveInputRef.current.jetpack,
+                    x: activeChar?.x,
+                    y: activeChar?.y,
+                    vx: activeChar?.vx,
+                    vy: activeChar?.vy,
+                    facing: activeChar?.facing,
                   });
                 }
               }}
@@ -1374,12 +1739,19 @@ export default function App() {
                 if (activeTeam.isAI || isRemoteOpponentTurn) return;
                 moveInputRef.current.backflip = true;
                 if (gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
+                  const activeChar = characters.find((c) => c.id === activeCharId);
                   networkService.sendGameAction('MOVE', {
+                    charId: activeChar?.id,
                     left: moveInputRef.current.left,
                     right: moveInputRef.current.right,
                     jump: false,
                     backflip: true,
                     jetpack: moveInputRef.current.jetpack,
+                    x: activeChar?.x,
+                    y: activeChar?.y,
+                    vx: activeChar?.vx,
+                    vy: activeChar?.vy,
+                    facing: activeChar?.facing,
                   });
                 }
               }}
