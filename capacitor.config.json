@@ -4,9 +4,12 @@
   "version": "1.0",
   "webDir": "dist",
   "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  },
   "android": {
     "backgroundColor": "#05050f",
-    "allowMixedContent": false,
+    "allowMixedContent": true,
     "captureInput": true,
     "webContentsDebuggingEnabled": false
   },

@@ -13,10 +13,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
+
+wss.on('error', (err) => {
+  console.warn('[Server] WebSocketServer error:', err);
+});
 
 app.use(express.json());
 
@@ -401,7 +405,10 @@ async function startServer() {
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -411,6 +418,10 @@ async function startServer() {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }
+
+  server.on('error', (err: any) => {
+    console.error('[Server] HTTP server error:', err);
+  });
 
   server.listen(PORT, '0.0.0.0', () => {
     const localIp = getLocalIpAddress();

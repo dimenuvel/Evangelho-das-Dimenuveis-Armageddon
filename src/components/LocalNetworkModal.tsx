@@ -56,7 +56,25 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   const [turnTimeLimit, setTurnTimeLimit] = useState<number>(45);
 
   // Connection & Room State
+  const initialNativeIp = (() => {
+    if (typeof window !== 'undefined' && (window as any).AndroidDevice?.getDeviceLocalIp) {
+      try {
+        const ip = (window as any).AndroidDevice.getDeviceLocalIp();
+        if (ip && typeof ip === 'string' && ip.trim().length > 0) {
+          return ip.trim();
+        }
+      } catch {}
+    }
+    return '';
+  })();
+
+  const [localNetworkIp, setLocalNetworkIp] = useState<string>(initialNativeIp);
+  const [isDetectingIp, setIsDetectingIp] = useState<boolean>(false);
+
   const [serverUrl, setServerUrl] = useState<string>(() => {
+    if (initialNativeIp) {
+      return `http://${initialNativeIp}:3000`;
+    }
     if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
       return window.location.origin;
     }
@@ -66,7 +84,6 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     }
     return '';
   });
-  const [localNetworkIp, setLocalNetworkIp] = useState<string>('');
   const [roomCode, setRoomCode] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState<string>('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -78,6 +95,26 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   // Connected Opponent
   const [connectedGuest, setConnectedGuest] = useState<NetworkPlayerInfo | null>(null);
   const [connectedHost, setConnectedHost] = useState<NetworkPlayerInfo | null>(null);
+
+  const refreshNetworkIp = async () => {
+    setIsDetectingIp(true);
+    try {
+      const info = await networkService.fetchLocalNetworkInfo();
+      if (info && info.localIp) {
+        setLocalNetworkIp(info.localIp);
+        setServerUrl((prev) => {
+          if (!prev || prev.includes('localhost') || prev.includes('127.0.0.1')) {
+            const upgraded = info.localUrl || `http://${info.localIp}:3000`;
+            networkService.setServerUrl(upgraded);
+            return upgraded;
+          }
+          return prev;
+        });
+      }
+    } finally {
+      setIsDetectingIp(false);
+    }
+  };
 
   // Fetch local network info and check query parameters when opened
   useEffect(() => {
@@ -93,17 +130,8 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
       }
     }
 
-    // Try fetching local LAN IP from server
-    networkService.fetchLocalNetworkInfo().then((info) => {
-      if (info) {
-        setLocalNetworkIp(info.localIp);
-        // Automatically upgrade serverUrl if currently empty or localhost
-        if (info.localUrl && (!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
-          setServerUrl(info.localUrl);
-          networkService.setServerUrl(info.localUrl);
-        }
-      }
-    });
+    // Try fetching/detecting local LAN IP
+    refreshNetworkIp();
 
     // Listeners for networkService
     const unsubCreated = networkService.on('roomCreated', async (payload: any) => {
@@ -534,11 +562,21 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               {/* Server Host IP Setting (Collapsible / Advanced) */}
               <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <label className="text-[11px] font-mono text-slate-400 block">
-                    {getTranslation(language, 'serverAddress')}
-                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] font-mono text-slate-400 block">
+                      {getTranslation(language, 'serverAddress')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={refreshNetworkIp}
+                      className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-900/40 transition-colors"
+                      title={language === 'pt' ? 'Redetectar IP' : 'Re-detect IP'}
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isDetectingIp ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
                   {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/40">
                       Wi-Fi IP: {localNetworkIp}
                     </span>
                   )}
@@ -550,6 +588,23 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   placeholder="http://192.168.1.X:3000"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
                 />
+
+                {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = `http://${localNetworkIp}:3000`;
+                        setServerUrl(target);
+                        networkService.setServerUrl(target);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-500/40 font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
+                    >
+                      <span>✓ {language === 'pt' ? 'Aplicar IP Local:' : 'Use Local Wi-Fi IP:'}</span>
+                      <span className="underline">http://{localNetworkIp}:3000</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Localhost Warning & Quick-Fix Helper */}
                 {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
@@ -683,11 +738,21 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               {/* Host Address Input */}
               <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <label className="text-[11px] font-mono text-slate-400 block">
-                    {getTranslation(language, 'serverAddress')}
-                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] font-mono text-slate-400 block">
+                      {getTranslation(language, 'serverAddress')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={refreshNetworkIp}
+                      className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-900/40 transition-colors"
+                      title={language === 'pt' ? 'Redetectar IP' : 'Re-detect IP'}
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isDetectingIp ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
                   {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/40">
                       Detected: {localNetworkIp}
                     </span>
                   )}
@@ -700,6 +765,39 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
                 />
 
+                {/* Subnet helper buttons */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-[10px] text-slate-400">
+                      {language === 'pt' ? 'Atalhos de rede:' : 'Subnet shortcuts:'}
+                    </span>
+                    {Array.from(
+                      new Set(
+                        [
+                          localNetworkIp && localNetworkIp.includes('.')
+                            ? localNetworkIp.split('.').slice(0, 3).join('.') + '.'
+                            : '',
+                          '192.168.1.',
+                          '192.168.0.',
+                          '10.0.0.',
+                        ].filter(Boolean)
+                      )
+                    ).map((prefix) => (
+                      <button
+                        key={prefix}
+                        type="button"
+                        onClick={() => {
+                          const target = `http://${prefix}`;
+                          setServerUrl(target);
+                        }}
+                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
+                      >
+                        http://{prefix}...
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
                   <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
                     <p className="leading-tight">
@@ -707,7 +805,7 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                         ? '⚠️ Digite o IP do Wi-Fi do celular anfitrião (ex: http://192.168.1.50:3000):'
                         : '⚠️ Enter the host mobile’s Wi-Fi IP (e.g. http://192.168.1.50:3000):'}
                     </p>
-                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') ? (
+                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
                       <button
                         type="button"
                         onClick={() => {
@@ -717,26 +815,9 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                         }}
                         className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
                       >
-                        <span>✓ {language === 'pt' ? 'Usar IP do Anfitrião:' : 'Use Host IP:'}</span>
+                        <span>✓ {language === 'pt' ? 'Usar IP Local:' : 'Use Local IP:'}</span>
                         <span className="underline">http://{localNetworkIp}:3000</span>
                       </button>
-                    ) : (
-                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                        <span className="text-[10px] text-slate-400">{language === 'pt' ? 'Atalhos:' : 'Subnet pre-fill:'}</span>
-                        {['192.168.1.', '192.168.0.', '10.0.0.'].map((prefix) => (
-                          <button
-                            key={prefix}
-                            type="button"
-                            onClick={() => {
-                              const target = `http://${prefix}`;
-                              setServerUrl(target);
-                            }}
-                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
-                          >
-                            http://{prefix}...
-                          </button>
-                        ))}
-                      </div>
                     )}
                   </div>
                 )}
