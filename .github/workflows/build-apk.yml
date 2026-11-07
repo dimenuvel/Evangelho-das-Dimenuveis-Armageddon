@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22.13.0'
           cache: npm
 
       - name: Install dependencies
@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
       - name: Set up Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: '21'
@@ -58,8 +58,3 @@ jobs:
           name: Evangelho-das-Dimenuveis-Armageddon-APK
           path: android/app/build/outputs/apk/debug/Evangelho-das-Dimenuveis-Armageddon.apk
           retention-days: 30
-
-
-
-        
-
