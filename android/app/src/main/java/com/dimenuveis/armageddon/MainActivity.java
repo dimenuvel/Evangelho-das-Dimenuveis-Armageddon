@@ -53,5 +53,28 @@ public class MainActivity extends BridgeActivity {
                 return "";
             }
         }
+
+        @JavascriptInterface
+        public boolean startLocalServer(int port) {
+            String ip = getDeviceLocalIp();
+            return EmbeddedGameServer.getInstance().start(port > 0 ? port : 3000, ip);
+        }
+
+        @JavascriptInterface
+        public boolean stopLocalServer() {
+            EmbeddedGameServer.getInstance().stop();
+            return true;
+        }
+
+        @JavascriptInterface
+        public boolean isServerRunning() {
+            return EmbeddedGameServer.getInstance().isRunning();
+        }
+
+        @JavascriptInterface
+        public int getServerPort() {
+            return EmbeddedGameServer.getInstance().getPort();
+        }
     }
 }
+

@@ -34,9 +34,6 @@ export interface NetworkGameAction {
 
 type EventCallback<T = any> = (data: T) => void;
 
-export const CLOUD_SERVER_URL =
-  'https://ais-dev-ymazscmjg4vmlr3vprgv2q-852308530209.us-east1.run.app';
-
 class NetworkService {
   private ws: WebSocket | null = null;
   private currentRoomCode: string | null = null;
@@ -52,20 +49,26 @@ class NetworkService {
   }
 
   public detectDefaultServerUrl(): string {
-    if (typeof window !== 'undefined') {
-      // 1. Web browser on hosted domain (Cloud Run / AI Studio preview)
-      if (
-        window.location &&
-        window.location.origin &&
-        window.location.protocol.startsWith('http') &&
-        !window.location.hostname.includes('localhost') &&
-        !window.location.hostname.includes('127.0.0.1')
-      ) {
-        return window.location.origin;
+    // 1. Native Android interface (Capacitor Bridge)
+    try {
+      if (typeof window !== 'undefined' && (window as any).AndroidDevice?.getDeviceLocalIp) {
+        const nativeIp = (window as any).AndroidDevice.getDeviceLocalIp();
+        if (nativeIp && typeof nativeIp === 'string' && nativeIp.trim().length > 0) {
+          return `http://${nativeIp.trim()}:3000`;
+        }
+      }
+    } catch {}
+
+    // 2. Web browser on hosted domain or localhost
+    if (typeof window !== 'undefined' && window.location) {
+      const hostname = window.location.hostname;
+      if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        const port = window.location.port ? `:${window.location.port}` : '';
+        return `${window.location.protocol}//${hostname}${port}`;
       }
     }
-    // 2. Default to the cloud WebSocket server so Android APK can play immediately
-    return CLOUD_SERVER_URL;
+
+    return 'http://localhost:3000';
   }
 
   public getSavedServerUrl(): string {
@@ -86,7 +89,12 @@ class NetworkService {
       } catch {}
       return;
     }
-    if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('ws://') && !clean.startsWith('wss://')) {
+    if (
+      !clean.startsWith('http://') &&
+      !clean.startsWith('https://') &&
+      !clean.startsWith('ws://') &&
+      !clean.startsWith('wss://')
+    ) {
       clean = 'http://' + clean;
     }
     // Remove trailing slash
@@ -111,25 +119,35 @@ class NetworkService {
     return this.serverUrl;
   }
 
-  public getWsUrl(): string {
-    const isCap = typeof window !== 'undefined' && (
-      typeof (window as any).Capacitor !== 'undefined' ||
-      typeof (window as any).AndroidDevice !== 'undefined' ||
-      window.location.hostname === 'localhost' ||
-      window.location.protocol === 'capacitor:' ||
-      window.location.protocol === 'ionic:'
-    );
-    const isHttpsBrowser = typeof window !== 'undefined' && window.location.protocol === 'https:' && !isCap;
+  public getWsUrl(forceLocalHost: boolean = false): string {
+    const isCap =
+      typeof window !== 'undefined' &&
+      (typeof (window as any).Capacitor !== 'undefined' ||
+        typeof (window as any).AndroidDevice !== 'undefined' ||
+        window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'ionic:');
+
+    // When the host runs directly on Android APK, connect to native server on 127.0.0.1
+    if (forceLocalHost && isCap) {
+      return 'ws://127.0.0.1:3000';
+    }
+
+    const isHttpsBrowser =
+      typeof window !== 'undefined' && window.location.protocol === 'https:' && !isCap;
 
     let url = (this.serverUrl || '').trim();
 
-    // If running in an HTTPS web browser (e.g. Cloud Run, AI Studio preview):
-    // Insecure http:// or ws:// is strictly blocked by modern browser security.
-    // Connect directly to the live WebSocket server running on the current HTTPS domain.
+    // If running in an HTTPS web browser, browsers strictly forbid insecure ws://
+    // (throwing SecurityError: An insecure WebSocket connection may not be initiated from a page loaded over HTTPS).
+    // Always use wss:// over the current secure origin unless a valid secure wss:// URL is explicitly given.
     if (isHttpsBrowser) {
-      if (!url || url.startsWith('http://') || url.startsWith('ws://') || url.includes('localhost') || url.includes('127.0.0.1')) {
-        return `wss://${window.location.host}`;
+      if (url.startsWith('https://')) {
+        return url.replace(/^https:/, 'wss:');
       }
+      if (url.startsWith('wss://')) {
+        return url;
+      }
+      return `wss://${window.location.host}`;
     }
 
     if (!url) {
@@ -149,10 +167,7 @@ class NetworkService {
       return `ws://${url}`;
     }
 
-    if (isHttpsBrowser) {
-      return `wss://${window.location.host}`;
-    }
-    return `ws://${(typeof window !== 'undefined' && window.location.hostname) || 'localhost'}:3000`;
+    return 'ws://localhost:3000';
   }
 
   /**
@@ -234,7 +249,6 @@ class NetworkService {
   }
 
   public async fetchLocalNetworkInfo(): Promise<{ localIp: string; port: number; localUrl: string } | null> {
-    // 1. First check device local IP directly (instant in Android APK & WebRTC)
     const deviceIp = await this.detectDeviceLocalIp();
     if (deviceIp) {
       return {
@@ -244,7 +258,6 @@ class NetworkService {
       };
     }
 
-    // 2. Query server REST endpoint
     const candidates: string[] = [];
     if (this.serverUrl && !this.serverUrl.includes('localhost') && !this.serverUrl.includes('127.0.0.1')) {
       candidates.push(this.serverUrl);
@@ -297,14 +310,14 @@ class NetworkService {
     }
   }
 
-  public connect(): Promise<boolean> {
+  public connect(forceLocalHost: boolean = false): Promise<boolean> {
     return new Promise((resolve) => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         resolve(true);
         return;
       }
 
-      const wsUrl = this.getWsUrl();
+      const wsUrl = this.getWsUrl(forceLocalHost);
       try {
         this.ws = new WebSocket(wsUrl);
 
@@ -406,12 +419,29 @@ class NetworkService {
     }
   }
 
+  /**
+   * Starts the Android embedded local server (if on Android APK),
+   * then connects to the local instance and creates the room.
+   */
   public async createRoom(
     hostName: string,
     hostFaction: FactionId,
     settings: NetworkRoomSettings
   ): Promise<boolean> {
-    const connected = await this.connect();
+    const isAndroid =
+      typeof window !== 'undefined' && (window as any).AndroidDevice?.startLocalServer;
+
+    if (isAndroid) {
+      try {
+        (window as any).AndroidDevice.startLocalServer(3000);
+        // Allow the native ServerSocket brief time to bind
+        await new Promise((r) => setTimeout(r, 200));
+      } catch (e) {
+        console.warn('Failed to start native Android server:', e);
+      }
+    }
+
+    const connected = await this.connect(Boolean(isAndroid));
     if (!connected) return false;
 
     this.send('CREATE_ROOM', {
@@ -429,7 +459,7 @@ class NetworkService {
     playerName: string,
     playerFaction: FactionId
   ): Promise<boolean> {
-    const connected = await this.connect();
+    const connected = await this.connect(false);
     if (!connected) return false;
 
     this.send('JOIN_ROOM', {

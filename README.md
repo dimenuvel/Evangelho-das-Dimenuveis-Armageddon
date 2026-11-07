@@ -111,36 +111,49 @@ O jogo oferece um arsenal diversificado que combina artilharia tradicional com f
 
 ## 📡 Multijogador em Rede Local Wi-Fi (LAN) / Local Wi-Fi Multiplayer
 
-O jogo conta com uma arquitetura dedicada em `server.ts` combinando **Express** e **WebSocket (`ws`)** para permitir partidas sem latência na rede Wi-Fi doméstica:
+O jogo é **100% autônomo na rede local** e não depende de servidores em nuvem ou internet externa. O próprio celular Android do anfitrião atua como o servidor do jogo via capacidades nativas!
 
-### Como Jogar Celular vs Celular (ou Celular vs PC):
+### 📱 Como Funciona o Servidor Nativo no Android:
+- **Servidor Embarcado no Celular (`EmbeddedGameServer.java`):**
+  Quando o jogador anfitrião toca em **"Iniciar Servidor & Criar Sala"** no aplicativo Android, o app abre um `ServerSocket` nativo na porta `3000` em segundo plano dentro do próprio celular.
+- **Protocolo WebSocket RFC 6455 em Java Puro:**
+  O servidor Android nativo gerencia a criação de salas, o handshake WebSocket, o roteamento de ações e a sincronização balística sem depender do Node.js ou de servidores externos.
+- **Detecção Automática de IP:**
+  O endereço IP local do Wi-Fi do anfitrião (ex: `http://192.168.1.105:3000`) é detectado na hora pela ponte `AndroidDevice.getDeviceLocalIp()` e já vem preenchido na tela, além de ser codificado no QR Code para entrada instantânea.
 
-1. **Conecte os dois aparelhos na mesma rede Wi-Fi residencial.**
+### Passo a Passo: Celular vs Celular (ou Celular vs PC) na Mesma Rede Wi-Fi:
+
+1. **Conecte ambos os aparelhos na mesma rede Wi-Fi** (ou no Ponto de Acesso Wi-Fi / Hotspot de um dos celulares).
 2. **Aparelho 1 (Anfitrião / Host):**
    - No Menu Principal, toque em **Rede Local (Wi-Fi)**.
-   - Na aba **Criar Sala (Host)**, o jogo preenche automaticamente o **IP Local do seu aparelho** (ex: `http://192.168.1.105:3000`).
-   - Escolha o nome, facção, mapa, guerreiros por equipe e toque em **Criar Sala**.
-   - A tela exibirá o **Código da Sala** (ex: `7K9P`) e um **QR Code** de conexão rápida.
+   - Na aba **Criar Sala (Host / Servidor)**, o endereço IP local do seu aparelho já estará preenchido (ex: `http://192.168.1.105:3000`).
+   - Escolha o nome, facção, mapa, guerreiros por equipe e toque em **INICIAR SERVIDOR & CRIAR SALA**.
+   - O servidor iniciará diretamente no seu celular e exibirá o **Código da Sala** (ex: `7K9P`) e um **QR Code**.
 3. **Aparelho 2 (Desafiante / Guest):**
-   - Abra o jogo e toque em **Rede Local (Wi-Fi)** > aba **Entrar (Join)**.
-   - Digite o código de 4 caracteres da sala ou aponte a câmera para o QR Code do anfitrião.
-   - Se o IP não foi preenchido automaticamente, selecione o atalho de sub-rede da sua casa (ex: `http://192.168.1.`) e insira o IP do anfitrião.
-   - Toque em **Entrar na Sala**.
-4. **Iniciar o Combate:**
-   - Assim que o segundo jogador conectar, o anfitrião toca em **Iniciar Batalha Cósmica**. O servidor envia uma semente aleatória idêntica para que ambos gerem o mesmo mapa destrutível milímetro a milímetro.
+   - Abra o jogo e toque em **Rede Local (Wi-Fi)** > aba **Entrar em Sala (Cliente)**.
+   - Digite o **Endereço IP do Anfitrião** (mostrado na tela do celular 1) e o **Código de 4 letras** da sala (ou aponte a câmera para o QR Code do anfitrião).
+   - Toque em **CONECTAR E ENTRAR NA SALA**.
+4. **Iniciar a Batalha:**
+   - Assim que o segundo jogador conectar, o anfitrião toca em **INICIAR BATALHA CÓSMICA**. O servidor envia uma semente geradora idêntica para que ambos gerem o mesmo terreno destrutível em tempo real.
 
 ---
 
-## 📱 Aplicativo Android (APK) & Detecção de IP / Android APK & IP Auto-Discovery
+## 📱 Aplicativo Android (APK) & Recursos Nativos / Android Capabilities
 
-O aplicativo Android utiliza a plataforma nativa **Capacitor 8** com configurações especiais para jogatina em rede local:
+O aplicativo Android utiliza a plataforma nativa **Capacitor 8** com extensões de baixo nível para hospedar servidores na rede:
 
+- **Servidor Web e WebSocket Nativo em Java (`EmbeddedGameServer.java`):**
+  Implementação em Java padrão rodando em thread separada com `java.net.ServerSocket` na porta 3000, oferecendo endpoints HTTP REST (`/api/network-info`, `/api/rooms`) e servidor WebSocket RFC 6455 sem bibliotecas de terceiros pesadas.
 - **Ponte Nativa de Detecção de IP (`MainActivity.java`):**
-  A classe principal do Android registra uma interface JavaScript nativa `window.AndroidDevice.getDeviceLocalIp()` que inspeciona as interfaces de rede ativas (`NetworkInterface`) e obtém o IP IPv4 do Wi-Fi (`192.168.X.X`) instantaneamente, mesmo em modo offline.
+  Interface JavaScript `window.AndroidDevice` exposta à WebView com os métodos:
+  - `getDeviceLocalIp()`: Varre `NetworkInterface` ativas para identificar o IP real do Wi-Fi (`192.168.x.x` ou `10.x.x.x`).
+  - `startLocalServer(port)`: Inicia o servidor do jogo na porta especificada.
+  - `stopLocalServer()`: Encerra o servidor e libera a porta.
+  - `isServerRunning()`: Retorna o status de execução.
 - **Tráfego Cleartext Liberado (`android:usesCleartextTraffic="true"`):**
-  O `AndroidManifest.xml` e o `capacitor.config.json` estão configurados para permitir conexões HTTP e WebSockets diretas (`ws://` e `http://`) entre aparelhos na rede local, contornando o bloqueio padrão do Android 9+.
-- **Permissões de Estado de Rede:**
-  Inclusão de `ACCESS_NETWORK_STATE` e `ACCESS_WIFI_STATE` para consulta sem interrupções.
+  Permite conexões diretas `http://` e `ws://` no Android 9+ sem bloqueios de segurança do sistema operacional.
+- **Permissões de Rede e Multicast:**
+  `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE` e `WAKE_LOCK`.
 
 ---
 
@@ -177,7 +190,8 @@ O aplicativo Android utiliza a plataforma nativa **Capacitor 8** com configuraç
 │   │       ├── AndroidManifest.xml     # Manifest com permissões de rede, tela cheia e cleartext
 │   │       ├── assets/public/          # Web assets sincronizados para a WebView nativa
 │   │       └── java/com/dimenuveis/armageddon/
-│   │           └── MainActivity.java   # Ponto de entrada nativo com AndroidDevice bridge
+│   │           ├── EmbeddedGameServer.java # Servidor WebSocket & HTTP embarcado no Android (porta 3000)
+│   │           └── MainActivity.java       # Ponto de entrada nativo com AndroidDevice bridge
 │   ├── build.gradle                    # Configuração raiz Gradle
 │   ├── gradlew                         # Script executável Gradle para Linux/macOS
 │   └── gradlew.bat                     # Script executável Gradle para Windows
