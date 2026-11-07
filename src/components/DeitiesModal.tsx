@@ -39,10 +39,10 @@ export const DeitiesModal: React.FC<DeitiesModalProps> = ({
               <Crown className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm sm:text-lg font-bold text-slate-100 font-cinzel truncate">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-100 font-cinzel break-words leading-tight">
                 {getTranslation(language, 'pantheonTitle')}
               </h2>
-              <p className="text-[11px] sm:text-xs text-purple-400 truncate">
+              <p className="text-[11px] sm:text-xs text-purple-400 break-words leading-tight">
                 {language === 'pt'
                   ? 'Divindades cósmicas coletadas & registros de batalha'
                   : 'Collected celestial deities & dimensional battle statistics'}
@@ -135,7 +135,7 @@ export const DeitiesModal: React.FC<DeitiesModalProps> = ({
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <h4 className="text-sm font-bold text-slate-100 font-cinzel truncate">
+                          <h4 className="text-sm font-bold text-slate-100 font-cinzel break-words leading-tight">
                             {deity.name}
                           </h4>
                           {isUnlocked && (

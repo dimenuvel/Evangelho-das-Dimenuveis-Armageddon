@@ -48,8 +48,8 @@ export const HotSeatTransitionModal: React.FC<HotSeatTransitionModalProps> = ({
             style={{ backgroundColor: nextTeam.color }}
           />
           <div className="text-left min-w-0">
-            <div className="text-sm sm:text-base font-bold text-slate-100 truncate">{nextTeam.name}</div>
-            <div className="text-xs text-purple-400 font-cinzel truncate">
+            <div className="text-sm sm:text-base font-bold text-slate-100 break-words">{nextTeam.name}</div>
+            <div className="text-xs text-purple-400 font-cinzel break-words leading-tight">
               {getTranslation(language, faction.nameKey)} ({faction.symbol})
             </div>
           </div>

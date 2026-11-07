@@ -184,12 +184,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     style={{ backgroundColor: activeTeam.color }}
                   />
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[10px] font-arcade text-slate-100 truncate flex items-center gap-1">
-                      <span className="truncate">{activeTeam.name}</span>
+                    <span className="text-[10px] font-arcade text-slate-100 flex items-center gap-1 flex-wrap">
+                      <span className="break-words leading-tight">{activeTeam.name}</span>
                       <span className="text-[9px] text-purple-400 shrink-0">({faction.symbol})</span>
                     </span>
                     {activeCharacter && (
-                      <span className="text-[10px] text-emerald-400 font-pixel truncate">
+                      <span className="text-[10px] text-emerald-400 font-pixel break-words leading-tight">
                         {activeCharacter.name} · {activeCharacter.hp} HP
                       </span>
                     )}
@@ -260,26 +260,26 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div className="flex items-center justify-between gap-2 w-full">
               <div className="flex-1 min-w-0">
                 {isResolving ? (
-                  <div className="px-2 py-1 bg-amber-950 border-2 border-amber-500 text-amber-300 text-[10px] font-arcade animate-pulse shadow-md truncate text-center">
+                  <div className="px-2 py-1 bg-amber-950 border-2 border-amber-500 text-amber-300 text-[10px] font-arcade animate-pulse shadow-md text-center break-words leading-tight">
                     ⚡ {getTranslation(language, 'resolvingImpact')}
                   </div>
                 ) : isRetreating ? (
-                  <div className="px-2 py-1 bg-rose-600 border-2 border-rose-400 text-white text-[10px] font-arcade animate-pulse shadow-lg truncate text-center">
+                  <div className="px-2 py-1 bg-rose-600 border-2 border-rose-400 text-white text-[10px] font-arcade animate-pulse shadow-lg text-center break-words leading-tight">
                     🏃 {getTranslation(language, 'retreatTime')} {retreatTimer}s
                   </div>
                 ) : isRemoteOpponentTurn ? (
-                  <div className="px-2 py-1 bg-cyan-950/90 border-2 border-cyan-500 text-cyan-200 text-[10px] font-arcade animate-pulse shadow-md truncate text-center flex items-center justify-center gap-1.5">
-                    <Wifi className="w-3 h-3 text-cyan-400 animate-pulse" />
-                    <span>{getTranslation(language, 'opponentTurn')}</span>
+                  <div className="px-2 py-1 bg-cyan-950/90 border-2 border-cyan-500 text-cyan-200 text-[10px] font-arcade animate-pulse shadow-md text-center flex items-center justify-center gap-1.5 break-words leading-tight">
+                    <Wifi className="w-3 h-3 text-cyan-400 animate-pulse shrink-0" />
+                    <span className="break-words">{getTranslation(language, 'opponentTurn')}</span>
                   </div>
                 ) : isAI ? (
-                  <div className="px-2 py-1 bg-purple-950/90 border-2 border-purple-500 text-purple-200 text-[10px] font-arcade animate-pulse shadow-md truncate text-center flex items-center justify-center gap-1.5">
-                    <span>🤖</span>
-                    <span>{getTranslation(language, 'cpuThinking')}</span>
+                  <div className="px-2 py-1 bg-purple-950/90 border-2 border-purple-500 text-purple-200 text-[10px] font-arcade animate-pulse shadow-md text-center flex items-center justify-center gap-1.5 break-words leading-tight">
+                    <span className="shrink-0">🤖</span>
+                    <span className="break-words">{getTranslation(language, 'cpuThinking')}</span>
                   </div>
                 ) : maxTurnTime > 0 ? (
                   <div
-                    className={`px-2 py-1 border-2 font-arcade text-[10px] shadow-md truncate text-center ${
+                    className={`px-2 py-1 border-2 font-arcade text-[10px] shadow-md text-center break-words leading-tight ${
                       turnTimer <= 5
                         ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
                         : 'bg-slate-900 border-slate-700 text-amber-300'
@@ -317,12 +317,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   style={{ backgroundColor: activeTeam.color }}
                 />
                 <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-[9px] sm:text-[11px] font-arcade text-slate-100 truncate flex items-center gap-1">
-                    <span className="truncate">{activeTeam.name}</span>
+                  <span className="text-[9px] sm:text-[11px] font-arcade text-slate-100 flex items-center gap-1 flex-wrap">
+                    <span className="break-words leading-tight">{activeTeam.name}</span>
                     <span className="text-[8px] sm:text-[9px] text-purple-400 shrink-0">({faction.symbol})</span>
                   </span>
                   {activeCharacter && (
-                    <span className="text-[9px] sm:text-[11px] text-emerald-400 font-pixel truncate">
+                    <span className="text-[9px] sm:text-[11px] text-emerald-400 font-pixel break-words leading-tight">
                       {activeCharacter.name} · {activeCharacter.hp} HP
                     </span>
                   )}
@@ -439,7 +439,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
         {/* Announcement Ticker */}
         {announcement && (
-          <div className="self-center px-3 py-1 bg-purple-950 border-2 border-purple-500 text-amber-300 text-[9px] sm:text-[10px] font-arcade max-w-xs sm:max-w-md text-center shadow-lg truncate">
+          <div className="self-center px-4 py-2 bg-purple-950/95 border-2 border-purple-500 text-amber-300 text-[10px] sm:text-xs font-arcade max-w-[94vw] sm:max-w-xl text-center shadow-2xl break-words leading-relaxed">
             {announcement}
           </div>
         )}
@@ -475,10 +475,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex flex-col text-left min-w-0 flex-1">
-                  <span className="text-[9px] font-arcade text-white leading-tight break-words line-clamp-2 block w-full">
+                  <span className="text-[9px] font-arcade text-white leading-tight break-words block w-full">
                     {getTranslation(language, selectedWeapon.nameKey)}
                   </span>
-                  <span className="text-[8px] sm:text-[9px] font-arcade text-amber-400 truncate">
+                  <span className="text-[8px] sm:text-[9px] font-arcade text-amber-400 whitespace-nowrap">
                     {selectedWeapon.initialAmmo === -1 ? 'AMMO ∞' : `AMMO x${availableAmmo}`}
                   </span>
                 </div>
@@ -589,7 +589,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="arcade-btn px-1.5 sm:px-2 h-11 bg-slate-900 active:bg-amber-600 border-2 border-slate-600 text-slate-100 flex flex-col items-center justify-center text-[9px] font-arcade shrink-0"
                   title={getTranslation(language, 'jump')}
                 >
-                  <span className="truncate">{language === 'pt' ? 'PULO' : 'JUMP'}</span>
+                  <span className="whitespace-nowrap">{language === 'pt' ? 'PULO' : 'JUMP'}</span>
                   <span className="text-[7px] text-amber-300">▲</span>
                 </button>
 
@@ -599,7 +599,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="arcade-btn px-1.5 sm:px-2 h-11 bg-slate-900 active:bg-rose-600 border-2 border-slate-600 text-slate-100 flex flex-col items-center justify-center text-[9px] font-arcade shrink-0"
                   title={getTranslation(language, 'backflip')}
                 >
-                  <span className="truncate">{language === 'pt' ? 'GIRO' : 'FLIP'}</span>
+                  <span className="whitespace-nowrap">{language === 'pt' ? 'GIRO' : 'FLIP'}</span>
                   <span className="text-[7px] text-rose-300">↺</span>
                 </button>
               </div>
@@ -631,7 +631,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   }`}
                   title={getTranslation(language, 'fire')}
                 >
-                  <span className="text-[10px] sm:text-[11px] leading-tight tracking-normal truncate max-w-full text-center px-0.5 block select-none">
+                  <span className="text-[10px] sm:text-[11px] leading-tight tracking-normal max-w-full text-center px-0.5 block select-none break-words">
                     {!canFire ? '...' : getTranslation(language, 'fire')}
                   </span>
                   {!isAirstrike && !isUtility && (
@@ -697,7 +697,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="arcade-btn px-3 h-13 bg-slate-900 active:bg-amber-600 border-2 border-slate-600 text-slate-100 flex flex-col items-center justify-center text-[10px] font-arcade shrink-0"
                   title={getTranslation(language, 'jump')}
                 >
-                  <span className="truncate">{language === 'pt' ? 'PULO' : 'JUMP'}</span>
+                  <span className="whitespace-nowrap">{language === 'pt' ? 'PULO' : 'JUMP'}</span>
                   <span className="text-[8px] text-amber-300">▲</span>
                 </button>
 
@@ -707,7 +707,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="arcade-btn px-3 h-13 bg-slate-900 active:bg-rose-600 border-2 border-slate-600 text-slate-100 flex flex-col items-center justify-center text-[10px] font-arcade shrink-0"
                   title={getTranslation(language, 'backflip')}
                 >
-                  <span className="truncate">{language === 'pt' ? 'GIRO' : 'FLIP'}</span>
+                  <span className="whitespace-nowrap">{language === 'pt' ? 'GIRO' : 'FLIP'}</span>
                   <span className="text-[8px] text-rose-300">↺</span>
                 </button>
               </div>
@@ -778,10 +778,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col text-left min-w-0">
-                  <span className="text-[10px] font-arcade text-white max-w-[120px] truncate block">
+                  <span className="text-[10px] font-arcade text-white max-w-[160px] break-words leading-tight block">
                     {getTranslation(language, selectedWeapon.nameKey)}
                   </span>
-                  <span className="text-[10px] font-arcade text-amber-400 truncate">
+                  <span className="text-[10px] font-arcade text-amber-400 whitespace-nowrap">
                     {selectedWeapon.initialAmmo === -1 ? 'AMMO ∞' : `AMMO x${availableAmmo}`}
                   </span>
                 </div>
@@ -813,7 +813,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   }`}
                   title={getTranslation(language, 'fire')}
                 >
-                  <span className="text-xs sm:text-sm tracking-normal truncate max-w-full text-center px-1 block select-none">
+                  <span className="text-xs sm:text-sm tracking-normal max-w-full text-center px-1 block select-none break-words leading-tight">
                     {!canFire ? '...' : getTranslation(language, 'fire')}
                   </span>
                   {!isAirstrike && !isUtility && (

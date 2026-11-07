@@ -36,10 +36,10 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
               <Swords className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm sm:text-lg font-bold text-slate-100 font-cinzel truncate">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-100 font-cinzel break-words leading-tight">
                 {getTranslation(language, 'campaignTitle')}
               </h2>
-              <p className="text-[11px] sm:text-xs text-purple-400 truncate">
+              <p className="text-[11px] sm:text-xs text-purple-400 break-words leading-tight">
                 {language === 'pt'
                   ? 'Vença os 6 Julgamentos para restaurar a harmonia dimensional'
                   : 'Overthrow the Archons across six cosmic trials'}
@@ -108,13 +108,13 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                   </p>
 
                   <div className="mt-3 p-2 sm:p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-400">
-                    <div className="truncate">
+                    <div className="break-words">
                       <span className="text-slate-500">Map: </span>
                       <span className="text-slate-300 font-medium">
                         {getTranslation(language, mapDef.nameKey)}
                       </span>
                     </div>
-                    <div className="truncate">
+                    <div className="break-words">
                       <span className="text-slate-500">Versus: </span>
                       <span className="text-amber-300 font-medium">
                         {getTranslation(language, enemyFaction.nameKey)}
@@ -125,7 +125,7 @@ export const CampaignModal: React.FC<CampaignModalProps> = ({
                   {rewardDeity && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-purple-300">
                       <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="truncate">
+                      <span className="break-words">
                         Reward: <strong className="text-amber-300">{rewardDeity.name}</strong>
                       </span>
                     </div>

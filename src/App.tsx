@@ -1399,13 +1399,13 @@ export default function App() {
           {/* Pause Menu Modal */}
           {isPaused && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
-              <div className="w-full max-w-xs max-h-[92vh] overflow-y-auto bg-slate-900 border border-purple-500/40 rounded-3xl p-5 sm:p-6 text-center shadow-2xl flex flex-col gap-3 scrollbar-thin scrollbar-thumb-purple-900">
-                <h3 className="text-lg font-bold text-slate-100 font-cinzel">
+              <div className="w-full max-w-sm max-h-[92vh] overflow-y-auto bg-slate-900 border border-purple-500/40 rounded-3xl p-5 sm:p-6 text-center shadow-2xl flex flex-col gap-3 scrollbar-thin scrollbar-thumb-purple-900">
+                <h3 className="text-lg font-bold text-slate-100 font-cinzel break-words">
                   {getTranslation(settings.language, 'paused')}
                 </h3>
                 <button
                   onClick={() => setIsPaused(false)}
-                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs min-h-[44px]"
+                  className="w-full py-3 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs min-h-[44px] break-words leading-tight"
                 >
                   {getTranslation(settings.language, 'resumeGame')}
                 </button>
@@ -1417,7 +1417,7 @@ export default function App() {
                     }
                     advanceTurn();
                   }}
-                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs min-h-[44px]"
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs min-h-[44px] break-words leading-tight"
                 >
                   {getTranslation(settings.language, 'surrender')}
                 </button>
@@ -1429,11 +1429,11 @@ export default function App() {
                     }
                     setView('MENU');
                   }}
-                  className="w-full py-2.5 rounded-xl text-rose-400 hover:bg-rose-950/40 text-xs min-h-[44px]"
+                  className="w-full py-2.5 px-3 rounded-xl text-rose-400 hover:bg-rose-950/40 text-xs min-h-[44px] break-words leading-tight"
                 >
                   {getTranslation(settings.language, 'backToMenu')}
                 </button>
-                <div className="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500">
+                <div className="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 break-words">
                   {settings.language === 'pt' ? 'Evangelho das Dimenúveis: Armageddon' : 'Gospel of Dimenuous: Armageddon'} · v1.0
                 </div>
               </div>

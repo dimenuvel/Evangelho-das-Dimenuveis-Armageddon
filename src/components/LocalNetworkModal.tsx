@@ -57,10 +57,14 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
 
   // Connection & Room State
   const [serverUrl, setServerUrl] = useState<string>(() => {
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
       return window.location.origin;
     }
-    return networkService.getServerUrl() || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const saved = networkService.getSavedServerUrl();
+    if (saved && !saved.includes('localhost')) {
+      return saved;
+    }
+    return '';
   });
   const [localNetworkIp, setLocalNetworkIp] = useState<string>('');
   const [roomCode, setRoomCode] = useState<string>('');
@@ -93,9 +97,8 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     networkService.fetchLocalNetworkInfo().then((info) => {
       if (info) {
         setLocalNetworkIp(info.localIp);
-        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-        // Only override serverUrl with localUrl if in an HTTP/LAN or Capacitor environment
-        if (!isHttps && !networkService.getSavedServerUrl() && info.localUrl) {
+        // Automatically upgrade serverUrl if currently empty or localhost
+        if (info.localUrl && (!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
           setServerUrl(info.localUrl);
           networkService.setServerUrl(info.localUrl);
         }
@@ -109,12 +112,13 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
       setStatusMessage(getTranslation(language, 'waitingForPlayer2'));
 
       // Generate QR Code with join URL
-      let baseJoinUrl = typeof window !== 'undefined' ? window.location.origin : (networkService.getServerUrl() || 'http://localhost:3000');
+      let baseJoinUrl = serverUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+      // If baseJoinUrl is still localhost but we detected a real LAN IP, prioritize the real network IP
       if (
-        typeof window !== 'undefined' &&
-        window.location.protocol !== 'https:' &&
+        (baseJoinUrl.includes('localhost') || baseJoinUrl.includes('127.0.0.1')) &&
         localNetworkIp &&
-        localNetworkIp !== 'localhost'
+        localNetworkIp !== 'localhost' &&
+        !localNetworkIp.startsWith('169.254.')
       ) {
         baseJoinUrl = `http://${localNetworkIp}:3000`;
       }
@@ -281,11 +285,11 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
             <div className="p-2 rounded-xl bg-purple-950 border border-purple-500/50 text-purple-300 shrink-0">
               <Wifi className="w-5 h-5 animate-pulse" />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-slate-100 font-cinzel truncate">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm sm:text-base font-bold text-slate-100 font-cinzel break-words leading-tight">
                 {getTranslation(language, 'localNetworkMultiplayer')}
               </h2>
-              <p className="text-[11px] text-purple-400 truncate">
+              <p className="text-[11px] text-purple-400 break-words leading-tight mt-0.5">
                 {language === 'pt'
                   ? 'Batalha direta entre celulares na mesma rede Wi-Fi residencial'
                   : 'Direct battle between phones on the same home Wi-Fi network'}
@@ -528,10 +532,17 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               </div>
 
               {/* Server Host IP Setting (Collapsible / Advanced) */}
-              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-                <label className="text-[11px] font-mono text-slate-400 block mb-1">
-                  {getTranslation(language, 'serverAddress')}
-                </label>
+              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <label className="text-[11px] font-mono text-slate-400 block">
+                    {getTranslation(language, 'serverAddress')}
+                  </label>
+                  {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                      Wi-Fi IP: {localNetworkIp}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={serverUrl}
@@ -539,7 +550,57 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   placeholder="http://192.168.1.X:3000"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
+
+                {/* Localhost Warning & Quick-Fix Helper */}
+                {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
+                  <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
+                    <p className="leading-tight">
+                      {language === 'pt'
+                        ? '⚠️ "localhost" só funciona neste aparelho. Para o outro celular se conectar pelo mesmo Wi-Fi, use o IP local da sua rede:'
+                        : '⚠️ "localhost" only works on this single device. For the other mobile to join over Wi-Fi, use your local network IP:'}
+                    </p>
+                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = `http://${localNetworkIp}:3000`;
+                          setServerUrl(target);
+                          networkService.setServerUrl(target);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
+                      >
+                        <span>✓ {language === 'pt' ? 'Preencher com IP Local:' : 'Set Local Wi-Fi IP:'}</span>
+                        <span className="underline">http://{localNetworkIp}:3000</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {language === 'pt'
+                            ? 'Dica: Digite o IP do Wi-Fi do seu aparelho (ex: http://192.168.1.50:3000)'
+                            : 'Hint: Enter your device Wi-Fi IP (e.g. http://192.168.1.50:3000)'}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] text-slate-400">{language === 'pt' ? 'Atalhos:' : 'Subnet pre-fill:'}</span>
+                          {['192.168.1.', '192.168.0.', '10.0.0.'].map((prefix) => (
+                            <button
+                              key={prefix}
+                              type="button"
+                              onClick={() => {
+                                const target = `http://${prefix}`;
+                                setServerUrl(target);
+                              }}
+                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
+                            >
+                              http://{prefix}...
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-500 leading-tight">
                   {language === 'pt'
                     ? 'Detectado automaticamente. Se ambos os celulares estiverem no mesmo Wi-Fi, este endereço conecta a sala.'
                     : 'Auto-detected. When both phones share the same Wi-Fi, this address links the match.'}
@@ -620,10 +681,17 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
               </div>
 
               {/* Host Address Input */}
-              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-                <label className="text-[11px] font-mono text-slate-400 block mb-1">
-                  {getTranslation(language, 'serverAddress')}
-                </label>
+              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <label className="text-[11px] font-mono text-slate-400 block">
+                    {getTranslation(language, 'serverAddress')}
+                  </label>
+                  {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                      Detected: {localNetworkIp}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={serverUrl}
@@ -631,7 +699,49 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   placeholder="http://192.168.1.X:3000"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-purple-300 font-mono outline-none focus:border-purple-500"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
+
+                {(!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) && (
+                  <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-200 space-y-1.5">
+                    <p className="leading-tight">
+                      {language === 'pt'
+                        ? '⚠️ Digite o IP do Wi-Fi do celular anfitrião (ex: http://192.168.1.50:3000):'
+                        : '⚠️ Enter the host mobile’s Wi-Fi IP (e.g. http://192.168.1.50:3000):'}
+                    </p>
+                    {localNetworkIp && localNetworkIp !== 'localhost' && !localNetworkIp.startsWith('169.254.') ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = `http://${localNetworkIp}:3000`;
+                          setServerUrl(target);
+                          networkService.setServerUrl(target);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
+                      >
+                        <span>✓ {language === 'pt' ? 'Usar IP do Anfitrião:' : 'Use Host IP:'}</span>
+                        <span className="underline">http://{localNetworkIp}:3000</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[10px] text-slate-400">{language === 'pt' ? 'Atalhos:' : 'Subnet pre-fill:'}</span>
+                        {['192.168.1.', '192.168.0.', '10.0.0.'].map((prefix) => (
+                          <button
+                            key={prefix}
+                            type="button"
+                            onClick={() => {
+                              const target = `http://${prefix}`;
+                              setServerUrl(target);
+                            }}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] border border-slate-700"
+                          >
+                            http://{prefix}...
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-500 leading-tight">
                   {language === 'pt'
                     ? 'O endereço IP local do aparelho anfitrião na rede Wi-Fi'
                     : 'The local IP address of the host device on your home network'}

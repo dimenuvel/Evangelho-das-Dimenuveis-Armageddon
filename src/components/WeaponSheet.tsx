@@ -156,7 +156,7 @@ export const WeaponSheet: React.FC<WeaponSheetProps> = ({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-xs sm:text-sm text-slate-100 leading-tight break-words line-clamp-2">
+                    <span className="font-semibold text-xs sm:text-sm text-slate-100 leading-tight break-words">
                       {getTranslation(language, wpn.nameKey)}
                     </span>
                     <span className="text-xs font-mono font-bold text-amber-400 shrink-0">
@@ -164,7 +164,7 @@ export const WeaponSheet: React.FC<WeaponSheetProps> = ({
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-400 mt-1 break-words leading-relaxed">
                     {getTranslation(language, wpn.descKey)}
                   </p>
 

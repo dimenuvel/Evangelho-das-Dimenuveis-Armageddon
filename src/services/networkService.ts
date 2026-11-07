@@ -50,16 +50,25 @@ class NetworkService {
 
   public detectDefaultServerUrl(): string {
     if (typeof window !== 'undefined' && window.location && window.location.origin) {
-      if (window.location.protocol.startsWith('http')) {
+      if (
+        window.location.protocol.startsWith('http') &&
+        !window.location.hostname.includes('localhost') &&
+        !window.location.hostname.includes('127.0.0.1')
+      ) {
         return window.location.origin;
       }
     }
-    return 'http://localhost:3000';
+    return '';
   }
 
   public getSavedServerUrl(): string {
     try {
       const saved = localStorage.getItem('gospel_lan_server_url') || '';
+      // Clear out localhost or 127.0.0.1 as a saved server since localhost cannot be accessed across phones
+      if (saved.includes('localhost') || saved.includes('127.0.0.1')) {
+        localStorage.removeItem('gospel_lan_server_url');
+        return '';
+      }
       // If running on an HTTPS origin, an insecure http:// saved URL is strictly blocked by browsers
       if (typeof window !== 'undefined' && window.location.protocol === 'https:' && saved.startsWith('http://')) {
         localStorage.removeItem('gospel_lan_server_url');

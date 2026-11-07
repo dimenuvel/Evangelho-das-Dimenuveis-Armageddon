@@ -323,12 +323,12 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
           <div className="w-full max-w-2xl max-h-[88vh] bg-slate-900/95 border border-purple-500/40 rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col justify-between">
             <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800 shrink-0">
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-bold text-slate-100 font-cinzel truncate">
+                <h2 className="text-base sm:text-lg font-bold text-slate-100 font-cinzel break-words leading-tight">
                   {selectedMode === 'SINGLE_PLAYER_AI'
                     ? getTranslation(language, 'singlePlayerAI')
                     : getTranslation(language, 'hotSeatMultiplayer')}
                 </h2>
-                <p className="text-xs text-purple-400 mt-0.5 truncate">
+                <p className="text-xs text-purple-400 mt-0.5 break-words leading-tight">
                   {getTranslation(language, 'setupMatch')}
                 </p>
               </div>
@@ -458,7 +458,7 @@ export const TitleMenu: React.FC<TitleMenuProps> = ({
                         onChange={(e) => setPrivacyHandoff(e.target.checked)}
                         className="rounded accent-purple-600 shrink-0"
                       />
-                      <span className="truncate">{language === 'pt' ? 'Ativar tela secreta no Hot-Seat' : 'Enable privacy shield in Hot-Seat'}</span>
+                      <span className="break-words">{language === 'pt' ? 'Ativar tela secreta no Hot-Seat' : 'Enable privacy shield in Hot-Seat'}</span>
                     </label>
                   </div>
                 )}

@@ -21,16 +21,43 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 
 // Helper to determine the local IPv4 address on the home Wi-Fi/LAN
-function getLocalIpAddress(): string {
+function getLocalIpAddress(req?: express.Request): string {
+  // If request came with a forwarded host header from a real domain or proxy, prefer that
+  if (req) {
+    const forwardedHost = req.headers['x-forwarded-host'] as string | undefined;
+    if (forwardedHost) {
+      return forwardedHost;
+    }
+    const hostHeader = (req.headers.host || '').split(':')[0];
+    if (hostHeader && hostHeader !== 'localhost' && hostHeader !== '127.0.0.1' && !hostHeader.startsWith('169.254.')) {
+      return hostHeader;
+    }
+  }
+
   const interfaces = os.networkInterfaces();
+  const candidates: string[] = [];
+
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name] || []) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        // Skip unroutable link-local address
+        if (iface.address.startsWith('169.254.')) continue;
+        // Prioritize standard home Wi-Fi / LAN address ranges
+        if (iface.address.startsWith('192.168.')) {
+          return iface.address;
+        }
+        if (iface.address.startsWith('10.')) {
+          candidates.unshift(iface.address);
+        } else if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(iface.address)) {
+          candidates.unshift(iface.address);
+        } else {
+          candidates.push(iface.address);
+        }
       }
     }
   }
-  return 'localhost';
+
+  return candidates[0] || '';
 }
 
 interface RoomPlayer {
@@ -86,11 +113,26 @@ function safeSend(ws: WebSocket | undefined, data: any) {
 
 // REST Endpoints for network info and room lookup
 app.get('/api/network-info', (req, res) => {
-  const localIp = getLocalIpAddress();
+  const localIp = getLocalIpAddress(req);
+  const forwardedHost = req.headers['x-forwarded-host'] as string | undefined;
+  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined) || 'https';
+  const hostHeader = req.headers.host || '';
+
+  let resolvedUrl = '';
+  if (forwardedHost) {
+    resolvedUrl = `${forwardedProto}://${forwardedHost}`;
+  } else if (localIp && localIp !== 'localhost' && !localIp.startsWith('169.254.')) {
+    resolvedUrl = `http://${localIp}:${PORT}`;
+  } else if (hostHeader && !hostHeader.startsWith('localhost') && !hostHeader.startsWith('127.0.0.1')) {
+    resolvedUrl = `http://${hostHeader}`;
+  } else {
+    resolvedUrl = '';
+  }
+
   res.json({
-    localIp,
+    localIp: localIp && localIp !== 'localhost' && !localIp.startsWith('169.254.') ? localIp : '',
     port: PORT,
-    localUrl: `http://${localIp}:${PORT}`,
+    localUrl: resolvedUrl,
     activeRooms: rooms.size,
   });
 });

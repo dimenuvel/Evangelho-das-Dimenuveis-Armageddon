@@ -83,7 +83,7 @@ export const FirstLaunchTourModal: React.FC<FirstLaunchTourModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0 gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 shrink-0" />
-            <h2 className="text-xs sm:text-sm font-bold text-slate-100 font-cinzel truncate">
+            <h2 className="text-xs sm:text-sm font-bold text-slate-100 font-cinzel break-words leading-tight">
               {getTranslation(language, 'tourTitle')}
             </h2>
           </div>
