@@ -309,20 +309,43 @@ export default function App() {
   // Launch Local Network Match
   const handleLaunchNetworkMatch = (config: NetworkMatchConfig) => {
     setIsLocalNetworkModalOpen(false);
-    setNetworkRole(config.myRole);
+    const myRole = config?.myRole || (networkService.getRole() || 'HOST');
+    setNetworkRole(myRole);
     setNetworkMatchConfig(config);
+
+    const hostFactionId: FactionId =
+      config?.host?.faction && FACTIONS[config.host.faction]
+        ? config.host.faction
+        : 'COSMIC_BOWLERS';
+    const guestFactionId: FactionId =
+      config?.guest?.faction && FACTIONS[config.guest.faction]
+        ? config.guest.faction
+        : 'NIHILISTS';
+
+    const hostFaction = FACTIONS[hostFactionId] || FACTIONS.COSMIC_BOWLERS;
+    const guestFaction = FACTIONS[guestFactionId] || FACTIONS.NIHILISTS;
+
+    const validMapId: MapId =
+      config?.settings?.mapId && MAPS[config.settings.mapId]
+        ? config.settings.mapId
+        : 'COSMIC_BOWLING_ALLEY';
+
+    const validTeamSize =
+      typeof config?.settings?.teamSize === 'number' && config.settings.teamSize >= 2 && config.settings.teamSize <= 4
+        ? config.settings.teamSize
+        : 3;
 
     setupMatch({
       mode: 'LOCAL_NETWORK',
-      team1Name: config.host.name || (settings.language === 'pt' ? 'Anfitrião Alfa' : 'Alpha Host'),
-      team1Faction: config.host.faction,
-      team1Color: FACTIONS[config.host.faction].primaryColor,
-      team2Name: config.guest.name || (settings.language === 'pt' ? 'Convidado Ômega' : 'Omega Guest'),
-      team2Faction: config.guest.faction,
-      team2Color: FACTIONS[config.guest.faction].primaryColor,
-      mapId: config.settings.mapId,
+      team1Name: config?.host?.name || (settings.language === 'pt' ? 'Anfitrião Alfa' : 'Alpha Host'),
+      team1Faction: hostFactionId,
+      team1Color: hostFaction.primaryColor,
+      team2Name: config?.guest?.name || (settings.language === 'pt' ? 'Convidado Ômega' : 'Omega Guest'),
+      team2Faction: guestFactionId,
+      team2Color: guestFaction.primaryColor,
+      mapId: validMapId,
       difficulty: 'NORMAL',
-      teamSize: config.settings.teamSize,
+      teamSize: validTeamSize,
       privacyHandoff: false,
     });
   };

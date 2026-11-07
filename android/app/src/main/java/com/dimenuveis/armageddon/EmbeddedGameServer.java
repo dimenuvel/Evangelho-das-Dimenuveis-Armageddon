@@ -289,7 +289,7 @@ public class EmbeddedGameServer {
                 case "CREATE_ROOM": {
                     String code = generateUniqueRoomCode();
                     String hostName = payload.optString("name", "Host Seeker");
-                    String hostFaction = payload.optString("faction", "cherubim");
+                    String hostFaction = payload.optString("faction", "COSMIC_BOWLERS");
 
                     JSONObject settings = new JSONObject();
                     settings.put("mapId", payload.optString("mapId", "COSMIC_BOWLING_ALLEY"));
@@ -352,7 +352,7 @@ public class EmbeddedGameServer {
                     }
 
                     String guestName = payload.optString("name", "Challenger");
-                    String guestFaction = payload.optString("faction", "nihilists");
+                    String guestFaction = payload.optString("faction", "NIHILISTS");
 
                     room.guestConn = conn;
                     room.guestName = guestName;
@@ -413,13 +413,39 @@ public class EmbeddedGameServer {
                         GameRoom room = rooms.get(conn.roomCode);
                         if (room != null && conn == room.hostConn) {
                             room.status = "PLAYING";
-                            JSONObject startMsg = new JSONObject();
-                            startMsg.put("type", "MATCH_STARTED");
-                            startMsg.put("payload", payload);
+                            long seed = System.currentTimeMillis();
 
-                            conn.send(startMsg.toString());
+                            JSONObject hostObj = new JSONObject();
+                            hostObj.put("name", room.hostName != null ? room.hostName : "Host Seeker");
+                            hostObj.put("faction", room.hostFaction != null ? room.hostFaction : "COSMIC_BOWLERS");
+
+                            JSONObject guestObj = new JSONObject();
+                            guestObj.put("name", room.guestName != null ? room.guestName : "Challenger");
+                            guestObj.put("faction", room.guestFaction != null ? room.guestFaction : "NIHILISTS");
+
+                            JSONObject basePayload = new JSONObject();
+                            basePayload.put("code", room.code);
+                            basePayload.put("seed", seed);
+                            basePayload.put("host", hostObj);
+                            basePayload.put("guest", guestObj);
+                            basePayload.put("settings", room.settings != null ? room.settings : new JSONObject());
+
+                            // Send to Host
+                            JSONObject hostPayload = new JSONObject(basePayload.toString());
+                            hostPayload.put("myRole", "HOST");
+                            JSONObject hostMsg = new JSONObject();
+                            hostMsg.put("type", "MATCH_STARTED");
+                            hostMsg.put("payload", hostPayload);
+                            conn.send(hostMsg.toString());
+
+                            // Send to Guest
                             if (room.guestConn != null && room.guestConn.isOpen()) {
-                                room.guestConn.send(startMsg.toString());
+                                JSONObject guestPayload = new JSONObject(basePayload.toString());
+                                guestPayload.put("myRole", "GUEST");
+                                JSONObject guestMsg = new JSONObject();
+                                guestMsg.put("type", "MATCH_STARTED");
+                                guestMsg.put("payload", guestPayload);
+                                room.guestConn.send(guestMsg.toString());
                             }
                         }
                     }

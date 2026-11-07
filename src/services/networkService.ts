@@ -474,8 +474,8 @@ class NetworkService {
     this.send('UPDATE_SETTINGS', settings);
   }
 
-  public startMatch() {
-    this.send('START_MATCH', {});
+  public startMatch(payload?: any) {
+    this.send('START_MATCH', payload || {});
   }
 
   public sendGameAction(action: NetworkGameAction['action'], data: any) {

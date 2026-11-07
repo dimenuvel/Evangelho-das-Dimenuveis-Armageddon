@@ -166,7 +166,46 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
 
     const unsubStarted = networkService.on('matchStarted', (matchPayload: any) => {
       setIsConnecting(false);
-      onLaunchNetworkMatch(matchPayload);
+
+      const role: 'HOST' | 'GUEST' =
+        matchPayload?.myRole ||
+        networkService.getRole() ||
+        (activeTab === 'HOST' ? 'HOST' : 'GUEST');
+
+      const hostName =
+        matchPayload?.host?.name ||
+        (role === 'HOST' ? playerName : connectedHost?.name || 'Host Seeker');
+      const hostFaction: FactionId =
+        matchPayload?.host?.faction ||
+        (role === 'HOST' ? selectedFaction : connectedHost?.faction || 'COSMIC_BOWLERS');
+
+      const guestName =
+        matchPayload?.guest?.name ||
+        (role === 'GUEST' ? playerName : connectedGuest?.name || 'Challenger');
+      const guestFaction: FactionId =
+        matchPayload?.guest?.faction ||
+        (role === 'GUEST' ? selectedFaction : connectedGuest?.faction || 'NIHILISTS');
+
+      const safeConfig: NetworkMatchConfig = {
+        code: matchPayload?.code || roomCode,
+        seed: matchPayload?.seed || Date.now(),
+        myRole: role,
+        host: {
+          name: hostName,
+          faction: hostFaction,
+        },
+        guest: {
+          name: guestName,
+          faction: guestFaction,
+        },
+        settings: {
+          mapId: matchPayload?.settings?.mapId || selectedMap,
+          teamSize: matchPayload?.settings?.teamSize ?? teamSize,
+          turnTimeLimit: matchPayload?.settings?.turnTimeLimit ?? turnTimeLimit,
+        },
+      };
+
+      onLaunchNetworkMatch(safeConfig);
       onClose();
     });
 
@@ -281,7 +320,24 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
   };
 
   const handleStartMatch = () => {
-    networkService.startMatch();
+    const startPayload = {
+      code: roomCode,
+      seed: Date.now(),
+      host: {
+        name: playerName,
+        faction: selectedFaction,
+      },
+      guest: connectedGuest || {
+        name: 'Challenger',
+        faction: 'NIHILISTS' as FactionId,
+      },
+      settings: {
+        mapId: selectedMap,
+        teamSize,
+        turnTimeLimit,
+      },
+    };
+    networkService.startMatch(startPayload);
   };
 
   const handleCopyHostIp = () => {
