@@ -424,7 +424,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'pinhead_thoth',
     name: 'Pinhead Thoth',
-    nameKey: 'deity_pinhead_name',
     titleKey: 'deity_pinhead_title',
     loreKey: 'deity_pinhead_lore',
     faction: 'COSMIC_BOWLERS',
@@ -434,7 +433,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'sophia',
     name: 'Sophia the Luminescent',
-    nameKey: 'deity_sophia_name',
     titleKey: 'deity_sophia_title',
     loreKey: 'deity_sophia_lore',
     faction: 'GNOSTIC_ORDER',
@@ -444,7 +442,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'auditor_metatron',
     name: 'Auditor Metatron',
-    nameKey: 'deity_auditor_name',
     titleKey: 'deity_auditor_title',
     loreKey: 'deity_auditor_lore',
     faction: 'ARCHONS',
@@ -454,7 +451,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'hermes',
     name: 'Hermes Dimenuous',
-    nameKey: 'deity_alchemist_name',
     titleKey: 'deity_alchemist_title',
     loreKey: 'deity_alchemist_lore',
     faction: 'HERMETIC_COUNCIL',
@@ -464,7 +460,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'void_lord',
     name: 'Lord of the Gutter',
-    nameKey: 'deity_void_name',
     titleKey: 'deity_void_title',
     loreKey: 'deity_void_lore',
     faction: 'NIHILISTS',
@@ -474,7 +469,6 @@ export const DEITIES: DeityInfo[] = [
   {
     id: 'yaldabaoth',
     name: 'Yaldabaoth the Demiurge',
-    nameKey: 'deity_yaldabaoth_name',
     titleKey: 'deity_yaldabaoth_title',
     loreKey: 'deity_yaldabaoth_lore',
     faction: 'ARCHONS',

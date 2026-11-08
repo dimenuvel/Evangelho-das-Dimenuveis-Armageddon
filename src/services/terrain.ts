@@ -403,7 +403,18 @@ export class TerrainEngine {
           }
         }
         if (!found) {
-          spawns.push({ x, y: 400 });
+          // Broad scan across map to guarantee valid ground surface
+          for (let testX = 120; testX < WORLD_WIDTH - 120; testX += 25) {
+            const altY = this.getGroundY(testX, 60);
+            if (altY && altY < VOID_LEVEL - 50) {
+              spawns.push({ x: testX, y: altY - 20 });
+              found = true;
+              break;
+            }
+          }
+        }
+        if (!found) {
+          spawns.push({ x: 200 + i * 150, y: 350 });
         }
       }
     }

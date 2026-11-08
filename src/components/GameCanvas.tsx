@@ -7,7 +7,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Character,
   DamageIndicator,
-  Language,
   MapDef,
   Particle,
   Projectile,
@@ -39,7 +38,6 @@ interface GameCanvasProps {
   turnPhase?: 'AIMING' | 'FIRING' | 'IMPACT_SETTLING' | 'RETREAT';
   recenterKey?: number;
   onPanStateChange?: (isPanned: boolean) => void;
-  language?: Language;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -65,7 +63,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   turnPhase = 'AIMING',
   recenterKey,
   onPanStateChange,
-  language = 'pt',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -445,7 +442,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.fillStyle = '#f43f5e';
         ctx.font = '8px "Press Start 2P", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(language === 'pt' ? 'ALVO' : 'TARGET', airstrikeTargetX, 130);
+        ctx.fillText('TARGET', airstrikeTargetX, 130);
       }
 
       // 5. Draw Characters (16-bit Arcade Pixel Sprites)

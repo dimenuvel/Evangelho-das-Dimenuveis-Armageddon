@@ -9,7 +9,7 @@ const SETTINGS_KEY = 'gospel_dimenuves_settings';
 const STATS_KEY = 'gospel_dimenuves_stats';
 
 export const defaultSettings: GameSettings = {
-  language: 'pt',
+  language: 'en',
   soundEnabled: true,
   musicEnabled: true,
   soundVolume: 0.8,

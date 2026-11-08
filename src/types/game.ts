@@ -187,7 +187,6 @@ export interface CampaignMission {
 export interface DeityInfo {
   id: string;
   name: string;
-  nameKey: string;
   titleKey: string;
   loreKey: string;
   faction: FactionId;

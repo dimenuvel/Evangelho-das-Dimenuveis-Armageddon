@@ -136,7 +136,7 @@ export const DeitiesModal: React.FC<DeitiesModalProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
                           <h4 className="text-sm font-bold text-slate-100 font-cinzel break-words leading-tight">
-                            {getTranslation(language, deity.nameKey, deity.name)}
+                            {deity.name}
                           </h4>
                           {isUnlocked && (
                             <span className="text-[10px] font-bold text-purple-400 font-cinzel shrink-0">

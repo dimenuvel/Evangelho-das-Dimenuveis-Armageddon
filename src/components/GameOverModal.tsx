@@ -55,7 +55,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {campaignMission ? (
           <div className="mb-2 shrink-0">
             <span className="text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/50 text-purple-300">
-              {getTranslation(language, 'trialPrefix')} 0{campaignMission.id} · {getTranslation(language, campaignMission.titleKey)}
+              TRIAL 0{campaignMission.id} · {getTranslation(language, campaignMission.titleKey)}
             </span>
             <h2 className="text-lg sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-purple-300 to-pink-300 font-cinzel tracking-wider mt-1.5">
               {isPlayerWin
@@ -66,7 +66,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               <div className="mt-2 p-2 rounded-xl bg-amber-950/60 border border-amber-500/40 text-xs text-amber-200 flex items-center justify-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  {getTranslation(language, 'rewardUnlocked')}: <strong>{getTranslation(language, rewardDeity.nameKey, rewardDeity.name)}</strong>
+                  {getTranslation(language, 'rewardUnlocked')}: <strong>{rewardDeity.name}</strong>
                 </span>
               </div>
             )}
@@ -146,7 +146,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               onClick={onNextMission}
               className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white font-bold text-xs font-cinzel shadow-lg shadow-purple-600/30 transition-all min-h-[44px] flex items-center justify-center gap-1"
             >
-              <span>{getTranslation(language, 'nextTrial')}</span>
+              <span>{language === 'pt' ? 'Próximo Julgamento' : 'Next Trial'}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
@@ -156,8 +156,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             >
               {campaignMission
                 ? isPlayerWin
-                  ? getTranslation(language, 'replayTrial')
-                  : getTranslation(language, 'tryAgain')
+                  ? language === 'pt' ? 'Repetir Julgamento' : 'Replay Trial'
+                  : language === 'pt' ? 'Tentar Novamente' : 'Try Again'
                 : getTranslation(language, 'playAgain')}
             </button>
           )}

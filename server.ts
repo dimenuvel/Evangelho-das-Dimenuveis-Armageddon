@@ -13,37 +13,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Process safety handlers to prevent dev server crashes on unhandled socket errors
-process.on('uncaughtException', (err) => {
-  console.warn('[Server] Uncaught exception:', err);
-});
-process.on('unhandledRejection', (reason) => {
-  console.warn('[Server] Unhandled rejection:', reason);
-});
-
-// Resolve port strictly avoiding 8080 (which is reserved for Nginx ingress proxy in AI Studio)
-function resolvePort(): number {
-  const portArgIdx = process.argv.indexOf('--port');
-  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
-    const val = Number(process.argv[portArgIdx + 1]);
-    if (!isNaN(val) && val > 0 && val !== 8080) return val;
-  }
-  if (process.env.APP_PORT) {
-    const val = Number(process.env.APP_PORT);
-    if (!isNaN(val) && val > 0 && val !== 8080) return val;
-  }
-  if (process.env.DEFAULT_APP_PORT) {
-    const val = Number(process.env.DEFAULT_APP_PORT);
-    if (!isNaN(val) && val > 0 && val !== 8080) return val;
-  }
-  if (process.env.PORT && process.env.PORT !== '8080') {
-    const val = Number(process.env.PORT);
-    if (!isNaN(val) && val > 0) return val;
-  }
-  return 3000;
-}
-
-const PORT = resolvePort();
+const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -315,8 +285,12 @@ wss.on('connection', (ws: WebSocket) => {
         case 'START_MATCH': {
           if (!currentRoomCode) return;
           const room = rooms.get(currentRoomCode);
-          if (room && room.host.ws === ws && room.guest) {
+          if (room && (room.host.ws === ws || !room.host.ws)) {
             room.status = 'IN_GAME';
+
+            if (payload && payload.settings) {
+              room.settings = { ...room.settings, ...payload.settings };
+            }
 
             // Generate a shared random seed so both clients have exact identical terrain
             const matchSeed = Date.now();
@@ -328,8 +302,8 @@ wss.on('connection', (ws: WebSocket) => {
                 faction: room.host.faction,
               },
               guest: {
-                name: room.guest.name,
-                faction: room.guest.faction,
+                name: room.guest ? room.guest.name : (payload?.guest?.name || 'Challenger'),
+                faction: room.guest ? room.guest.faction : (payload?.guest?.faction || 'NIHILISTS'),
               },
               settings: room.settings,
             };
@@ -338,10 +312,12 @@ wss.on('connection', (ws: WebSocket) => {
               type: 'MATCH_STARTED',
               payload: { ...startPayload, myRole: 'HOST' },
             });
-            safeSend(room.guest.ws, {
-              type: 'MATCH_STARTED',
-              payload: { ...startPayload, myRole: 'GUEST' },
-            });
+            if (room.guest) {
+              safeSend(room.guest.ws, {
+                type: 'MATCH_STARTED',
+                payload: { ...startPayload, myRole: 'GUEST' },
+              });
+            }
           }
           break;
         }
@@ -457,10 +433,8 @@ async function startServer() {
     const localIp = getLocalIpAddress();
     console.log(`> Evangelho das Dimenúveis: Armageddon Server running`);
     console.log(`> Local:   http://localhost:${PORT}`);
-    console.log(`> Network: http://${localIp || 'localhost'}:${PORT}`);
+    console.log(`> Network: http://${localIp}:${PORT}`);
   });
 }
 
-startServer().catch((err) => {
-  console.error('[Server] Failed to bootstrap server:', err);
-});
+startServer();

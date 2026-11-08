@@ -35,10 +35,11 @@ export interface NetworkGameAction {
     | 'JETPACK'
     | 'CYCLE_WARRIOR'
     | 'ADVANCE_TURN'
-    | 'TURN_ADVANCED'
     | 'REQUEST_ADVANCE_TURN'
     | 'CHARGE_START'
-    | 'START_RETREAT';
+    | 'CHARGE_UPDATE'
+    | 'AIRSTRIKE_TARGET'
+    | 'GAME_OVER';
   data: any;
   sender?: string;
 }
