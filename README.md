@@ -330,4 +330,4 @@ O repositório inclui a esteira completa em `.github/workflows/build-apk.yml`.
 ## 📜 Licença / License
 
 Desenvolvido para o universo transmídia de **Evangelho das Dimenúveis**.  
-Distribuído sob os termos da licença **Apache 2.0**.
+Distribuído sob os termos da licença **MIT**.
