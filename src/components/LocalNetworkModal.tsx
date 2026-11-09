@@ -670,27 +670,29 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                       <QrCode className="w-3.5 h-3.5 text-purple-400" />
                       <span>{getTranslation(language, 'scanToJoin')}</span>
                     </p>
-                    <p className="text-[10px] text-slate-400 text-center max-w-sm mt-0.5">
-                      {language === 'pt'
-                        ? 'O Jogador 2 pode escanear com a câmera do app (aba Conectar) ou com a câmera do celular para abrir o app diretamente.'
-                        : 'Player 2 can scan with the in-app camera (Join tab) or phone camera to open in app directly.'}
-                    </p>
+                    <div className="p-3 bg-slate-900/90 rounded-xl border border-purple-900/60 text-left max-w-sm mt-2 space-y-1.5">
+                      <span className="text-[11px] font-bold text-amber-300 block">
+                        {language === 'pt' ? '📱 Como conectar o 2º jogador:' : '📱 How Player 2 joins:'}
+                      </span>
+                      <p className="text-[10px] text-slate-300 leading-tight">
+                        {language === 'pt'
+                          ? '1. No 2º celular, abra o app > aba "Entrar" > toque em "Escanear QR Code com a Câmera" (Mais rápido).'
+                          : '1. On phone 2, open app > "Join" tab > tap "Scan QR Code with Camera".'}
+                      </p>
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        {language === 'pt'
+                          ? '2. Ou aponte a câmera comum do celular para o QR Code acima.'
+                          : '2. Or point phone camera at the QR Code above.'}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-2 mt-2.5">
                       <button
                         type="button"
                         onClick={handleCopyLink}
-                        className="px-2.5 py-1 text-[10px] font-mono rounded-lg bg-slate-900 border border-slate-700 hover:border-purple-500 text-slate-300 flex items-center gap-1.5 transition-colors"
+                        className="px-3 py-1.5 text-[11px] font-mono rounded-xl bg-purple-900/60 border border-purple-500/50 hover:bg-purple-800 text-purple-100 flex items-center gap-1.5 transition-colors shadow-md"
                       >
-                        {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-purple-400" />}
-                        <span>{language === 'pt' ? 'Copiar Link Web' : 'Copy Web Link'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCopyDeepLink}
-                        className="px-2.5 py-1 text-[10px] font-mono rounded-lg bg-purple-950/80 border border-purple-700 hover:border-purple-400 text-purple-200 flex items-center gap-1.5 transition-colors"
-                      >
-                        {copiedDeepLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Smartphone className="w-3 h-3 text-amber-400" />}
-                        <span>{language === 'pt' ? 'Copiar App Deep Link' : 'Copy App Deep Link'}</span>
+                        {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-purple-300" />}
+                        <span>{language === 'pt' ? 'Copiar Link da Partida' : 'Copy Match Link'}</span>
                       </button>
                     </div>
                   </div>

@@ -271,12 +271,9 @@ public class EmbeddedGameServer {
                 html.append(".help { font-size: 12px; color: #94a3b8; line-height: 1.5; }");
                 html.append("</style>");
                 html.append("<script>");
-                html.append("window.onload = function() {");
-                html.append("  try {");
-                html.append("    window.location.href = '" + intentUri + "';");
-                html.append("    setTimeout(function() { window.location.href = '" + customUri + "'; }, 400);");
-                html.append("  } catch(e) {}");
-                html.append("};");
+                html.append("function launchApp() {");
+                html.append("  window.location.href = '" + intentUri + "';");
+                html.append("}");
                 html.append("</script>");
                 html.append("</head><body><div class='card'>");
                 html.append("<h2>⚔️ Evangelho das Dimenúveis</h2>");
