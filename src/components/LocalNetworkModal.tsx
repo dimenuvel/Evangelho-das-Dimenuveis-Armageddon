@@ -166,6 +166,38 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
     setScannedSuccess(false);
 
     try {
+      // 1. If running inside native Android app, check and request OS camera permission first
+      const androidDevice = typeof window !== 'undefined' ? (window as any).AndroidDevice : null;
+      if (androidDevice && typeof androidDevice.hasCameraPermission === 'function') {
+        const hasPermission = androidDevice.hasCameraPermission();
+        if (!hasPermission && typeof androidDevice.requestCameraPermission === 'function') {
+          const granted = await new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => {
+              window.removeEventListener('cameraPermissionResult', onResult);
+              resolve(false);
+            }, 20000);
+
+            const onResult = (e: any) => {
+              clearTimeout(timeout);
+              window.removeEventListener('cameraPermissionResult', onResult);
+              resolve(!!e?.detail?.granted);
+            };
+
+            window.addEventListener('cameraPermissionResult', onResult);
+            androidDevice.requestCameraPermission();
+          });
+
+          if (!granted) {
+            setScannerError(
+              language === 'pt'
+                ? 'Permissão de câmera não concedida. Toque em "Conceder Permissão" abaixo.'
+                : 'Camera permission not granted. Tap "Grant Permission" below.'
+            );
+            return;
+          }
+        }
+      }
+
       if (!navigator?.mediaDevices?.getUserMedia) {
         setScannerError(
           language === 'pt'
@@ -200,9 +232,25 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
       console.error('Camera access error:', err);
       setScannerError(
         language === 'pt'
-          ? 'Não foi possível acessar a câmera. Verifique se a permissão foi concedida nas configurações do dispositivo.'
-          : 'Could not access camera. Check device camera permissions.'
+          ? 'Permissão de câmera necessária para ler o QR Code. Toque em "Conceder Permissão" abaixo.'
+          : 'Camera permission required to scan QR Code. Tap "Grant Permission" below.'
       );
+    }
+  };
+
+  const handleRequestCameraPermission = () => {
+    const androidDevice = typeof window !== 'undefined' ? (window as any).AndroidDevice : null;
+    if (androidDevice && typeof androidDevice.requestCameraPermission === 'function') {
+      const onResult = (e: any) => {
+        window.removeEventListener('cameraPermissionResult', onResult);
+        if (e?.detail?.granted) {
+          startScanner();
+        }
+      };
+      window.addEventListener('cameraPermissionResult', onResult);
+      androidDevice.requestCameraPermission();
+    } else {
+      startScanner();
     }
   };
 
@@ -1017,15 +1065,24 @@ export const LocalNetworkModal: React.FC<LocalNetworkModalProps> = ({
                   </div>
 
                   {scannerError && (
-                    <div className="w-full p-3 bg-rose-950 border-t border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-2">
-                      <span className="text-[11px]">{scannerError}</span>
-                      <button
-                        type="button"
-                        onClick={() => startScanner()}
-                        className="px-2.5 py-1 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-[10px] font-bold shrink-0"
-                      >
-                        {language === 'pt' ? 'Tentar de novo' : 'Retry'}
-                      </button>
+                    <div className="w-full p-3 bg-rose-950 border-t border-rose-500/50 text-rose-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] flex-1">{scannerError}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleRequestCameraPermission}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold shadow"
+                        >
+                          {language === 'pt' ? 'Permitir Câmera' : 'Allow Camera'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startScanner()}
+                          className="px-2.5 py-1 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-[10px] font-bold"
+                        >
+                          {language === 'pt' ? 'Tentar de novo' : 'Retry'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -58,8 +58,13 @@ Este documento registra as decisões, soluções de erros e padrões de engenhar
 ---
 
 ## 4. Escaneamento de QR Code & Carregamento Direto no App
+- **Solicitação de Permissão de Câmera em Tempo de Execução (Runtime Permission):**
+  - No Android 6.0+, `android.permission.CAMERA` é uma permissão perigosa de tempo de execução.
+  - No `MainActivity.java`, o `WebChromeClient.onPermissionRequest` intercepta a requisição do WebView. Se `ContextCompat.checkSelfPermission(...) != PERMISSION_GRANTED`, chama `ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE)` para exibir a caixa de diálogo nativa do Android ("Permitir que o app Armageddon use a câmera").
+  - O resultado é capturado em `onRequestPermissionsResult`, que concede a requisição pendente (`pendingWebPermissionRequest.grant(...)`) e emite o evento `cameraPermissionResult`.
+  - A interface `window.AndroidDevice` expõe `hasCameraPermission()` e `requestCameraPermission()`, permitindo que o botão "Escanear QR Code com a Câmera" solicite a permissão antes de iniciar o `navigator.mediaDevices.getUserMedia`.
 - **Leitor Embutido na Aplicação (`LocalNetworkModal.tsx`):**
-  - Utiliza `jsQR` via WebRTC/HTML5 `<video>` no WebView, com permissões `android.permission.CAMERA` e `WebChromeClient.onPermissionRequest` no `MainActivity.java`.
+  - Utiliza `jsQR` via WebRTC/HTML5 `<video>` no WebView.
   - Ao ler o QR Code, extrai automaticamente IP e código da sala e conecta instantaneamente.
 - **Deep Links & Android Intents:**
   - Esquemas de URL registrados no `AndroidManifest.xml`: `armageddon://join?code=...&host=...`.

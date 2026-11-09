@@ -1,11 +1,16 @@
 package com.dimenuveis.armageddon;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -13,16 +18,39 @@ import java.net.NetworkInterface;
 import java.util.Enumeration;
 
 public class MainActivity extends BridgeActivity {
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 10101;
+    private PermissionRequest pendingWebPermissionRequest = null;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         try {
             if (this.bridge != null && this.bridge.getWebView() != null) {
-                this.bridge.getWebView().addJavascriptInterface(new DeviceNetworkInterface(), "AndroidDevice");
+                this.bridge.getWebView().addJavascriptInterface(new DeviceNetworkInterface(this), "AndroidDevice");
                 this.bridge.getWebView().setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
+                        boolean needsCamera = false;
+                        for (String resource : request.getResources()) {
+                            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                                needsCamera = true;
+                                break;
+                            }
+                        }
+
+                        if (needsCamera) {
+                            if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                pendingWebPermissionRequest = request;
+                                ActivityCompat.requestPermissions(
+                                    MainActivity.this,
+                                    new String[]{Manifest.permission.CAMERA},
+                                    CAMERA_PERMISSION_REQUEST_CODE
+                                );
+                                return;
+                            }
+                        }
+
                         request.grant(request.getResources());
                     }
                 });
@@ -32,6 +60,29 @@ public class MainActivity extends BridgeActivity {
         }
 
         handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (pendingWebPermissionRequest != null) {
+                if (granted) {
+                    pendingWebPermissionRequest.grant(pendingWebPermissionRequest.getResources());
+                } else {
+                    pendingWebPermissionRequest.deny();
+                }
+                pendingWebPermissionRequest = null;
+            }
+
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('cameraPermissionResult', { detail: { granted: " + granted + " } }));",
+                    null
+                );
+            }
+        }
     }
 
     @Override
@@ -77,6 +128,38 @@ public class MainActivity extends BridgeActivity {
 
     public static class DeviceNetworkInterface {
         public static String pendingJoinUri = null;
+        private final MainActivity activity;
+
+        public DeviceNetworkInterface(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        @JavascriptInterface
+        public boolean hasCameraPermission() {
+            if (activity == null) return false;
+            return ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public void requestCameraPermission() {
+            if (activity == null) return;
+            activity.runOnUiThread(() -> {
+                if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        new String[]{Manifest.permission.CAMERA},
+                        CAMERA_PERMISSION_REQUEST_CODE
+                    );
+                } else {
+                    if (activity.bridge != null && activity.bridge.getWebView() != null) {
+                        activity.bridge.getWebView().evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('cameraPermissionResult', { detail: { granted: true } }));",
+                            null
+                        );
+                    }
+                }
+            });
+        }
 
         @JavascriptInterface
         public String getPendingJoinUri() {
