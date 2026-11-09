@@ -113,13 +113,17 @@ O jogo oferece um arsenal diversificado que combina artilharia tradicional com f
 
 O jogo é **100% autônomo na rede local** e não depende de servidores em nuvem ou internet externa. O próprio celular Android do anfitrião atua como o servidor do jogo via capacidades nativas!
 
-### 📱 Como Funciona o Servidor Nativo no Android:
+### 📱 Como Funciona o Servidor Nativo e a Conexão via QR Code / Deep Link:
 - **Servidor Embarcado no Celular (`EmbeddedGameServer.java`):**
   Quando o jogador anfitrião toca em **"Iniciar Servidor & Criar Sala"** no aplicativo Android, o app abre um `ServerSocket` nativo na porta `3000` em segundo plano dentro do próprio celular.
 - **Protocolo WebSocket RFC 6455 em Java Puro:**
   O servidor Android nativo gerencia a criação de salas, o handshake WebSocket, o roteamento de ações e a sincronização balística sem depender do Node.js ou de servidores externos.
 - **Detecção Automática de IP:**
   O endereço IP local do Wi-Fi do anfitrião (ex: `http://192.168.1.105:3000`) é detectado na hora pela ponte `AndroidDevice.getDeviceLocalIp()` e já vem preenchido na tela, além de ser codificado no QR Code para entrada instantânea.
+- **📷 Leitor de QR Code Embutido no App (In-App Camera Scanner):**
+  Na aba **Entrar em Sala (Cliente)**, basta tocar em **"ESCANEAR QR CODE COM A CÂMERA"**. O leitor integrado usa a câmera do aparelho via `jsQR` para ler o QR Code da tela do anfitrião, detectando automaticamente o IP e o código da sala e conectando na hora, sem que ninguém precise digitar nada!
+- **🚀 Deep Links Nativos Android (`armageddon://join`):**
+  Se o jogador 2 escanear o QR Code usando a câmera padrão do Android, Google Lens ou leitor externo, o sistema aciona o Deep Link `armageddon://join?code=...&host=...` ou a página de despacho do servidor embarcado que abre a sessão diretamente dentro do app Armageddon instalado, sem ficar preso no navegador Chrome.
 
 ### Passo a Passo: Celular vs Celular (ou Celular vs PC) na Mesma Rede Wi-Fi:
 
@@ -128,12 +132,17 @@ O jogo é **100% autônomo na rede local** e não depende de servidores em nuvem
    - No Menu Principal, toque em **Rede Local (Wi-Fi)**.
    - Na aba **Criar Sala (Host / Servidor)**, o endereço IP local do seu aparelho já estará preenchido (ex: `http://192.168.1.105:3000`).
    - Escolha o nome, facção, mapa, guerreiros por equipe e toque em **INICIAR SERVIDOR & CRIAR SALA**.
-   - O servidor iniciará diretamente no seu celular e exibirá o **Código da Sala** (ex: `7K9P`) e um **QR Code**.
-3. **Aparelho 2 (Desafiante / Guest):**
+   - O servidor iniciará diretamente no seu celular e exibirá o **Código da Sala** (ex: `7K9P`), o **QR Code** e opções de cópia de link/deep link.
+3. **Aparelho 2 (Desafiante / Guest) - Opção A (Recomendada): Escanear pelo App**
    - Abra o jogo e toque em **Rede Local (Wi-Fi)** > aba **Entrar em Sala (Cliente)**.
-   - Digite o **Endereço IP do Anfitrião** (mostrado na tela do celular 1) e o **Código de 4 letras** da sala (ou aponte a câmera para o QR Code do anfitrião).
-   - Toque em **CONECTAR E ENTRAR NA SALA**.
-4. **Iniciar a Batalha:**
+   - Toque no botão dourado **"ESCANEAR QR CODE COM A CÂMERA"**.
+   - Aponte para a tela do aparelho 1. O app lê o código, preenche os dados e conecta automaticamente!
+4. **Aparelho 2 (Desafiante / Guest) - Opção B: Escanear pela Câmera do Celular / Google Lens**
+   - Aponte a câmera do Android para o QR Code da tela do anfitrião.
+   - O Android abrirá o app Armageddon diretamente na sala com o IP e código preenchidos.
+5. **Aparelho 2 (Desafiante / Guest) - Opção C: Digitação Manual**
+   - Digite o endereço IP do anfitrião e o código de 4 letras exibidos na tela do celular 1 e toque em **ENTRAR NA SALA**.
+6. **Iniciar a Batalha:**
    - Assim que o segundo jogador conectar, o anfitrião toca em **INICIAR BATALHA CÓSMICA**. O servidor envia uma semente geradora idêntica para que ambos gerem o mesmo terreno destrutível em tempo real.
 
 ---
@@ -143,13 +152,18 @@ O jogo é **100% autônomo na rede local** e não depende de servidores em nuvem
 O aplicativo Android utiliza a plataforma nativa **Capacitor 8** com extensões de baixo nível para hospedar servidores na rede:
 
 - **Servidor Web e WebSocket Nativo em Java (`EmbeddedGameServer.java`):**
-  Implementação em Java padrão rodando em thread separada com `java.net.ServerSocket` na porta 3000, oferecendo endpoints HTTP REST (`/api/network-info`, `/api/rooms`) e servidor WebSocket RFC 6455 sem bibliotecas de terceiros pesadas.
-- **Ponte Nativa de Detecção de IP (`MainActivity.java`):**
+  Implementação em Java padrão rodando em thread separada com `java.net.ServerSocket` na porta 3000, oferecendo endpoints HTTP REST (`/api/network-info`, `/api/rooms`), servidor WebSocket RFC 6455 e despachante HTTP com Intent automático para abrir no APK quando escaneado por navegadores móveis.
+- **Ponte Nativa de Detecção de IP & Deep Links (`MainActivity.java`):**
   Interface JavaScript `window.AndroidDevice` exposta à WebView com os métodos:
   - `getDeviceLocalIp()`: Varre `NetworkInterface` ativas para identificar o IP real do Wi-Fi (`192.168.x.x` ou `10.x.x.x`).
+  - `getPendingJoinUri()`: Recupera a URI de deep link no início a frio (cold start) para auto-preenchimento da sala.
   - `startLocalServer(port)`: Inicia o servidor do jogo na porta especificada.
   - `stopLocalServer()`: Encerra o servidor e libera a porta.
   - `isServerRunning()`: Retorna o status de execução.
+- **Filtros de Intent de Deep Link (`AndroidManifest.xml`):**
+  Filtros `<intent-filter>` para os esquemas `armageddon://` e `dimenuveis://`, permitindo que links `armageddon://join?code=...&host=...` e intents diretos do Chrome abram o aplicativo nativo automaticamente.
+- **Suporte a Câmera WebRTC e Permissões:**
+  Permissões `android.permission.CAMERA` e `WebChromeClient.onPermissionRequest` configurados para permitir escaneamento de QR Code diretamente na WebView sem travas.
 - **Tráfego Cleartext Liberado (`android:usesCleartextTraffic="true"`):**
   Permite conexões diretas `http://` e `ws://` no Android 9+ sem bloqueios de segurança do sistema operacional.
 - **Permissões de Rede e Multicast:**

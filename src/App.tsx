@@ -105,6 +105,10 @@ export default function App() {
   const [isLocalNetworkModalOpen, setIsLocalNetworkModalOpen] = useState<boolean>(false);
   const [networkRole, setNetworkRole] = useState<'HOST' | 'GUEST' | null>(null);
   const [networkMatchConfig, setNetworkMatchConfig] = useState<NetworkMatchConfig | null>(null);
+  const [networkModalInitialTab, setNetworkModalInitialTab] = useState<'HOST' | 'JOIN'>('HOST');
+  const [networkModalJoinCode, setNetworkModalJoinCode] = useState<string>('');
+  const [networkModalHostIp, setNetworkModalHostIp] = useState<string>('');
+  const [networkModalAutoConnect, setNetworkModalAutoConnect] = useState<boolean>(false);
 
   // Check if it's the local player's turn to control in Local Network mode
   const isMyNetworkTurn =
@@ -194,14 +198,65 @@ export default function App() {
     setCompletedCampaignMissions([1]);
   };
 
-  // Auto-open local network modal if URL has ?join=XXXX
+  // Auto-open local network modal and populate join session from URL or Android Deep Link
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('join')) {
+    if (typeof window === 'undefined') return;
+
+    // 1. Process URL query parameters (?join=CODE&host=IP)
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('join') || params.get('code');
+    const urlHost = params.get('host');
+    if (urlCode) {
+      setNetworkModalInitialTab('JOIN');
+      setNetworkModalJoinCode(urlCode.toUpperCase().trim());
+      if (urlHost) {
+        setNetworkModalHostIp(urlHost.trim());
+      }
+      setNetworkModalAutoConnect(true);
+      setIsLocalNetworkModalOpen(true);
+    }
+
+    // 2. Check cold-start pending deep link from native Android bridge
+    try {
+      if ((window as any).AndroidDevice?.getPendingJoinUri) {
+        const pendingUri = (window as any).AndroidDevice.getPendingJoinUri();
+        if (pendingUri) {
+          const parsed = networkService.parseJoinUri(pendingUri);
+          if (parsed && (parsed.code || parsed.host)) {
+            setNetworkModalInitialTab('JOIN');
+            if (parsed.code) setNetworkModalJoinCode(parsed.code);
+            if (parsed.host) setNetworkModalHostIp(parsed.host);
+            setNetworkModalAutoConnect(true);
+            setIsLocalNetworkModalOpen(true);
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Listen to live CustomEvent 'appDeepLink' from MainActivity.java
+    const handleDeepLinkEvent = (e: any) => {
+      const detail = e?.detail || {};
+      const uri = detail.uri || '';
+      const code = detail.code || '';
+      const host = detail.host || '';
+
+      const parsed = networkService.parseJoinUri(uri);
+      const finalCode = (code || parsed?.code || '').toUpperCase().trim();
+      const finalHost = (host || parsed?.host || '').trim();
+
+      if (finalCode || finalHost) {
+        setNetworkModalInitialTab('JOIN');
+        if (finalCode) setNetworkModalJoinCode(finalCode);
+        if (finalHost) setNetworkModalHostIp(finalHost);
+        setNetworkModalAutoConnect(true);
         setIsLocalNetworkModalOpen(true);
       }
-    }
+    };
+
+    window.addEventListener('appDeepLink', handleDeepLinkEvent);
+    return () => {
+      window.removeEventListener('appDeepLink', handleDeepLinkEvent);
+    };
   }, []);
 
   // Listen to remote actions in Local Network mode
@@ -1446,7 +1501,13 @@ export default function App() {
             setCompletedCampaignMissions(loadCompletedCampaignMissions());
             setIsCampaignOpen(true);
           }}
-          onOpenLocalNetwork={() => setIsLocalNetworkModalOpen(true)}
+          onOpenLocalNetwork={() => {
+            setNetworkModalInitialTab('HOST');
+            setNetworkModalJoinCode('');
+            setNetworkModalHostIp('');
+            setNetworkModalAutoConnect(false);
+            setIsLocalNetworkModalOpen(true);
+          }}
           onOpenDeities={() => {
             setStats(loadStats());
             setIsDeitiesOpen(true);
@@ -1798,6 +1859,10 @@ export default function App() {
         onClose={() => setIsLocalNetworkModalOpen(false)}
         language={settings.language}
         onLaunchNetworkMatch={handleLaunchNetworkMatch}
+        initialTab={networkModalInitialTab}
+        initialJoinCode={networkModalJoinCode}
+        initialHostIp={networkModalHostIp}
+        autoConnect={networkModalAutoConnect}
       />
 
       {/* Campaign Trials Modal */}

@@ -1,7 +1,11 @@
 package com.dimenuveis.armageddon;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
 import com.getcapacitor.BridgeActivity;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -16,13 +20,71 @@ public class MainActivity extends BridgeActivity {
         try {
             if (this.bridge != null && this.bridge.getWebView() != null) {
                 this.bridge.getWebView().addJavascriptInterface(new DeviceNetworkInterface(), "AndroidDevice");
+                this.bridge.getWebView().setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        request.grant(request.getResources());
+                    }
+                });
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLinkIntent(intent);
+    }
+
+    private void handleDeepLinkIntent(Intent intent) {
+        if (intent == null || intent.getData() == null) return;
+
+        Uri data = intent.getData();
+        String uriStr = data.toString();
+        DeviceNetworkInterface.pendingJoinUri = uriStr;
+
+        String code = data.getQueryParameter("join");
+        if (code == null || code.isEmpty()) {
+            code = data.getQueryParameter("code");
+        }
+        String host = data.getQueryParameter("host");
+        if (host == null || host.isEmpty()) {
+            String hostName = data.getHost();
+            if (hostName != null && !hostName.equalsIgnoreCase("join") && !hostName.equalsIgnoreCase("localhost")) {
+                host = hostName;
+            }
+        }
+
+        final String finalCode = code != null ? code : "";
+        final String finalHost = host != null ? host : "";
+
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            String js = "window.dispatchEvent(new CustomEvent('appDeepLink', { detail: { uri: '" + uriStr + "', code: '" + finalCode + "', host: '" + finalHost + "' } }));";
+            this.bridge.getWebView().postDelayed(() -> {
+                try {
+                    if (MainActivity.this.bridge != null && MainActivity.this.bridge.getWebView() != null) {
+                        MainActivity.this.bridge.getWebView().evaluateJavascript(js, null);
+                    }
+                } catch (Exception ignored) {}
+            }, 600);
+        }
     }
 
     public static class DeviceNetworkInterface {
+        public static String pendingJoinUri = null;
+
+        @JavascriptInterface
+        public String getPendingJoinUri() {
+            String uri = pendingJoinUri;
+            pendingJoinUri = null;
+            return uri != null ? uri : "";
+        }
+
         @JavascriptInterface
         public String getDeviceLocalIp() {
             try {

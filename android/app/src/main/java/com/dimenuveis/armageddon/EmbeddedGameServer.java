@@ -226,6 +226,71 @@ public class EmbeddedGameServer {
                 JSONObject resp = new JSONObject();
                 resp.put("rooms", list);
                 sendJsonResponse(out, 200, resp.toString());
+            } else if (requestLine.contains("join") || requestLine.startsWith("GET / ") || requestLine.startsWith("GET /?")) {
+                String roomCode = "";
+                String hostIp = localIpAddress != null ? localIpAddress : "";
+
+                int joinIdx = requestLine.indexOf("join=");
+                if (joinIdx != -1) {
+                    int endIdx = requestLine.indexOf('&', joinIdx);
+                    if (endIdx == -1) endIdx = requestLine.indexOf(' ', joinIdx);
+                    if (endIdx != -1) {
+                        roomCode = requestLine.substring(joinIdx + 5, endIdx).trim();
+                    } else {
+                        roomCode = requestLine.substring(joinIdx + 5).trim();
+                    }
+                }
+
+                int hostIdx = requestLine.indexOf("host=");
+                if (hostIdx != -1) {
+                    int endIdx = requestLine.indexOf('&', hostIdx);
+                    if (endIdx == -1) endIdx = requestLine.indexOf(' ', hostIdx);
+                    if (endIdx != -1) {
+                        hostIp = requestLine.substring(hostIdx + 5, endIdx).trim();
+                    }
+                }
+
+                String intentUri = "intent://join?code=" + roomCode + "&host=" + hostIp + "#Intent;scheme=armageddon;package=com.dimenuveis.armageddon;end";
+                String customUri = "armageddon://join?code=" + roomCode + "&host=" + hostIp;
+
+                StringBuilder html = new StringBuilder();
+                html.append("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+                html.append("<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0'>");
+                html.append("<title>Evangelho das Dimenúveis: Armageddon</title>");
+                html.append("<style>");
+                html.append("body { background: #09090b; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; text-align: center; }");
+                html.append(".card { background: #18181b; border: 1px solid #7c3aed; border-radius: 24px; padding: 28px 20px; max-width: 400px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }");
+                html.append("h2 { color: #fde047; font-size: 20px; margin: 0 0 8px 0; }");
+                html.append(".sub { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }");
+                html.append(".code-box { background: #0f0c29; border: 2px dashed #a855f7; border-radius: 16px; padding: 14px; margin-bottom: 24px; }");
+                html.append(".code-label { color: #c084fc; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }");
+                html.append(".code-val { font-size: 32px; font-family: monospace; font-weight: 900; color: #fbbf24; letter-spacing: 4px; margin: 4px 0; }");
+                html.append(".host-val { font-size: 11px; font-family: monospace; color: #64748b; }");
+                html.append(".btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #7c3aed, #db2777); color: white; text-decoration: none; padding: 16px; border-radius: 16px; font-weight: bold; font-size: 15px; box-shadow: 0 8px 24px rgba(124,58,237,0.4); margin-bottom: 16px; }");
+                html.append(".btn:active { transform: scale(0.98); }");
+                html.append(".help { font-size: 12px; color: #94a3b8; line-height: 1.5; }");
+                html.append("</style>");
+                html.append("<script>");
+                html.append("window.onload = function() {");
+                html.append("  try {");
+                html.append("    window.location.href = '" + intentUri + "';");
+                html.append("    setTimeout(function() { window.location.href = '" + customUri + "'; }, 400);");
+                html.append("  } catch(e) {}");
+                html.append("};");
+                html.append("</script>");
+                html.append("</head><body><div class='card'>");
+                html.append("<h2>⚔️ Evangelho das Dimenúveis</h2>");
+                html.append("<p class='sub'>Partida Wi-Fi Local Encontrada</p>");
+                html.append("<div class='code-box'>");
+                html.append("<div class='code-label'>Código da Sala</div>");
+                html.append("<div class='code-val'>").append(roomCode.isEmpty() ? "---" : roomCode).append("</div>");
+                html.append("<div class='host-val'>Host: ").append(hostIp).append(":3000</div>");
+                html.append("</div>");
+                html.append("<a href='").append(intentUri).append("' class='btn'>🚀 ABRIR NO APP ARMAGEDDON</a>");
+                html.append("<p class='help'>Se o aplicativo não abrir automaticamente, toque no botão acima ou abra o app no celular e use o botão <strong>Escanear QR Code</strong> na aba Entrar.</p>");
+                html.append("</div></body></html>");
+
+                sendHtmlResponse(out, 200, html.toString());
             } else {
                 // Default health check response
                 JSONObject status = new JSONObject();
@@ -237,6 +302,18 @@ public class EmbeddedGameServer {
         } catch (Exception e) {
             Log.e(TAG, "Error responding to HTTP endpoint", e);
         }
+    }
+
+    private void sendHtmlResponse(OutputStream out, int statusCode, String html) throws Exception {
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        String header = "HTTP/1.1 " + statusCode + " OK\r\n" +
+                "Content-Type: text/html; charset=utf-8\r\n" +
+                "Access-Control-Allow-Origin: *\r\n" +
+                "Content-Length: " + bytes.length + "\r\n" +
+                "Connection: close\r\n\r\n";
+        out.write(header.getBytes(StandardCharsets.UTF_8));
+        out.write(bytes);
+        out.flush();
     }
 
     private void sendJsonResponse(OutputStream out, int statusCode, String body) throws Exception {

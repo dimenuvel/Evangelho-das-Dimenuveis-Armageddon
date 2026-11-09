@@ -305,6 +305,85 @@ class NetworkService {
     return null;
   }
 
+  public parseJoinUri(rawInput: string): { code?: string; host?: string; raw: string } | null {
+    if (!rawInput || typeof rawInput !== 'string') return null;
+    const raw = rawInput.trim();
+    if (!raw) return null;
+
+    // 1. JSON payload check
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw);
+        const code = (parsed.code || parsed.join || '').toString().toUpperCase().trim();
+        let host = parsed.host || parsed.serverUrl || undefined;
+        if (host && !host.startsWith('http')) {
+          host = `http://${host}`;
+        }
+        return { code: code || undefined, host, raw };
+      } catch {}
+    }
+
+    // 2. Custom deep-link schemes: armageddon:// or dimenuveis://
+    if (raw.startsWith('armageddon://') || raw.startsWith('dimenuveis://')) {
+      try {
+        const dummyUrl = new URL(raw.replace(/^(armageddon|dimenuveis):\/\//, 'http://dummy.local/'));
+        const code = dummyUrl.searchParams.get('code') || dummyUrl.searchParams.get('join') || '';
+        let host = dummyUrl.searchParams.get('host') || '';
+        if (!host && dummyUrl.hostname && dummyUrl.hostname !== 'dummy.local' && dummyUrl.hostname !== 'join' && dummyUrl.hostname !== 'localhost') {
+          const port = dummyUrl.port ? `:${dummyUrl.port}` : ':3000';
+          host = `http://${dummyUrl.hostname}${port}`;
+        }
+        if (host && !host.startsWith('http')) {
+          host = `http://${host}`;
+        }
+        return {
+          code: code.toUpperCase().trim() || undefined,
+          host: host || undefined,
+          raw,
+        };
+      } catch {}
+    }
+
+    // 3. Web URL: http:// or https://
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      try {
+        const url = new URL(raw);
+        const code = url.searchParams.get('join') || url.searchParams.get('code') || '';
+        const hostParam = url.searchParams.get('host');
+        let host = '';
+        if (hostParam) {
+          host = hostParam.startsWith('http') ? hostParam : `http://${hostParam}`;
+        } else if (url.hostname && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+          const port = url.port ? `:${url.port}` : ':3000';
+          host = `${url.protocol}//${url.hostname}${port}`;
+        }
+        return {
+          code: code.toUpperCase().trim() || undefined,
+          host: host || undefined,
+          raw,
+        };
+      } catch {}
+    }
+
+    // 4. Pattern: CODE@HOST or CODE#HOST
+    if (raw.includes('@')) {
+      const parts = raw.split('@');
+      const code = parts[0].toUpperCase().trim();
+      let host = parts[1].trim();
+      if (host && !host.startsWith('http')) {
+        host = `http://${host}`;
+      }
+      return { code: code || undefined, host: host || undefined, raw };
+    }
+
+    // 5. Plain alphanumeric code (e.g., "7K9P" or "ABC123")
+    if (/^[A-Za-z0-9]{4,8}$/.test(raw)) {
+      return { code: raw.toUpperCase().trim(), raw };
+    }
+
+    return { raw };
+  }
+
   public async generateJoinQRCode(roomCode: string, directUrl?: string): Promise<string> {
     const targetUrl = directUrl || `${this.serverUrl}?join=${roomCode}`;
     try {
