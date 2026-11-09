@@ -36,8 +36,14 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses || true
+          else
+            yes | sdkmanager --licenses || true
+          fi
 
       - name: Sync Capacitor Android
         run: |
