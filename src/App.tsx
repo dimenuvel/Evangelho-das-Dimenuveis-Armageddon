@@ -116,12 +116,56 @@ export default function App() {
     (networkRole === 'HOST' ? activeTeamIdx === 0 : activeTeamIdx === 1);
   const isRemoteOpponentTurn = gameMode === 'LOCAL_NETWORK' && !isMyNetworkTurn;
 
-  // Match Stats Accumulator
-  const [totalTurnsCount, setTotalTurnsCount] = useState<number>(0);
+  // Match Stats Accumulator (React state + authoritative refs to prevent stale closures)
+  const [totalTurnsCount, setTotalTurnsCount] = useState<number>(1);
   const [totalDamageCount, setTotalDamageCount] = useState<number>(0);
   const [pinsKnockedCount, setPinsKnockedCount] = useState<number>(0);
   const [voidElimsCount, setVoidElimsCount] = useState<number>(0);
   const [winningTeam, setWinningTeam] = useState<Team | null>(null);
+  const totalTurnsRef = useRef<number>(1);
+  const totalDamageRef = useRef<number>(0);
+  const pinsKnockedRef = useRef<number>(0);
+  const voidElimsRef = useRef<number>(0);
+  const voidEliminatedIdsRef = useRef<Set<string>>(new Set());
+  const eliminatedIdsRef = useRef<Set<string>>(new Set());
+  const isGameOverRef = useRef<boolean>(false);
+
+  const resetMatchStats = () => {
+    totalTurnsRef.current = 1;
+    totalDamageRef.current = 0;
+    pinsKnockedRef.current = 0;
+    voidElimsRef.current = 0;
+    voidEliminatedIdsRef.current.clear();
+    eliminatedIdsRef.current.clear();
+    isGameOverRef.current = false;
+    setTotalTurnsCount(1);
+    setTotalDamageCount(0);
+    setPinsKnockedCount(0);
+    setVoidElimsCount(0);
+  };
+
+  const addMatchDamage = (amount: number) => {
+    if (amount <= 0) return;
+    totalDamageRef.current += amount;
+    setTotalDamageCount(totalDamageRef.current);
+  };
+
+  const recordCharacterElimination = (charId: string) => {
+    if (!eliminatedIdsRef.current.has(charId)) {
+      eliminatedIdsRef.current.add(charId);
+      pinsKnockedRef.current = eliminatedIdsRef.current.size;
+      setPinsKnockedCount(pinsKnockedRef.current);
+    }
+  };
+
+  const recordCharacterVoidDeath = (charId: string) => {
+    if (!voidEliminatedIdsRef.current.has(charId)) {
+      voidEliminatedIdsRef.current.add(charId);
+      voidElimsRef.current = voidEliminatedIdsRef.current.size;
+      setVoidElimsCount(voidElimsRef.current);
+    }
+    recordCharacterElimination(charId);
+  };
 
   // Controls & Aiming State
   const [aimAngle, setAimAngle] = useState<number>(45);
@@ -165,6 +209,7 @@ export default function App() {
   const chargeIntervalRef = useRef<number | null>(null);
   const powerRef = useRef<number>(50);
   const isAITurnActiveRef = useRef<boolean>(false);
+  const aiFireTimeoutRef = useRef<number | null>(null);
   const lastMoveBroadcastTimeRef = useRef<number>(0);
 
   // Sync settings with sound engine
@@ -349,7 +394,7 @@ export default function App() {
             clearInterval(chargeIntervalRef.current);
             chargeIntervalRef.current = null;
           }
-          fireCurrentWeapon(data.angle, data.power, data.targetX, true);
+          fireCurrentWeapon(data.angle, data.power, data.targetX, true, data.weaponId);
           break;
 
         case 'ADVANCE_TURN':
@@ -364,6 +409,13 @@ export default function App() {
           }
           if (data.characters && Array.isArray(data.characters)) {
             setCharacters(data.characters);
+          }
+          if (typeof data.totalTurns === 'number') {
+            totalTurnsRef.current = data.totalTurns;
+            setTotalTurnsCount(data.totalTurns);
+          } else {
+            totalTurnsRef.current += 1;
+            setTotalTurnsCount(totalTurnsRef.current);
           }
           setTurnTimer(settings.turnTimeLimit > 0 ? settings.turnTimeLimit : 0);
           setIsRetreating(false);
@@ -398,9 +450,9 @@ export default function App() {
 
         case 'GAME_OVER':
           if (data.victorIdx !== null && data.victorIdx !== undefined && teams[data.victorIdx]) {
-            handleGameOver(teams[data.victorIdx], true);
+            handleGameOver(teams[data.victorIdx], true, data.stats);
           } else {
-            handleGameOver(null, true);
+            handleGameOver(null, true, data.stats);
           }
           break;
       }
@@ -618,11 +670,14 @@ export default function App() {
     setSelectedWeaponId('COSMIC_ROCKET');
     setAirstrikeTargetX(null);
 
+    isAITurnActiveRef.current = false;
+    if (aiFireTimeoutRef.current) {
+      clearTimeout(aiFireTimeoutRef.current);
+      aiFireTimeoutRef.current = null;
+    }
+
     // Reset stats
-    setTotalTurnsCount(0);
-    setTotalDamageCount(0);
-    setPinsKnockedCount(0);
-    setVoidElimsCount(0);
+    resetMatchStats();
     setWinningTeam(null);
     setIsGameOverOpen(false);
     setIsPaused(false);
@@ -720,11 +775,15 @@ export default function App() {
     const newWind = Math.floor((Math.random() - 0.5) * 160);
     setWind(newWind);
 
+    totalTurnsRef.current += 1;
+    setTotalTurnsCount(totalTurnsRef.current);
+
     if (gameMode === 'LOCAL_NETWORK' && (networkRole === 'HOST' || networkService.getRole() === 'HOST')) {
       networkService.sendGameAction('ADVANCE_TURN', {
         activeTeamIdx: nextTeamIdx,
         activeCharId: nextChar.id,
         wind: newWind,
+        totalTurns: totalTurnsRef.current,
         characters,
       });
     }
@@ -743,7 +802,6 @@ export default function App() {
     setRecenterTrigger((c) => c + 1);
     setSelectedWeaponId('COSMIC_ROCKET');
     setAirstrikeTargetX(null);
-    setTotalTurnsCount((c) => c + 1);
 
     // Clear any user input state so it never carries over to next team or CPU
     moveInputRef.current = {
@@ -798,16 +856,55 @@ export default function App() {
   };
 
   // Game Over handling
-  const handleGameOver = (victor: Team | null, isRemote = false) => {
+  const handleGameOver = (
+    victor: Team | null,
+    isRemote = false,
+    remoteStats?: { totalTurns: number; totalDamage: number; pinsKnocked: number; voidElims: number }
+  ) => {
+    if (isGameOverRef.current) return;
+    isGameOverRef.current = true;
+
+    // Reconcile any dead/void characters that weren't captured yet just in case
+    characters.forEach((c) => {
+      if (c.isDead) {
+        recordCharacterElimination(c.id);
+        if (c.y >= VOID_LEVEL) {
+          recordCharacterVoidDeath(c.id);
+        }
+      }
+    });
+
+    const finalTurns = remoteStats?.totalTurns ?? totalTurnsRef.current;
+    const finalDamage = remoteStats?.totalDamage ?? totalDamageRef.current;
+    const finalPins = remoteStats?.pinsKnocked ?? pinsKnockedRef.current;
+    const finalVoidElims = remoteStats?.voidElims ?? voidElimsRef.current;
+
+    if (remoteStats) {
+      totalTurnsRef.current = finalTurns;
+      totalDamageRef.current = finalDamage;
+      pinsKnockedRef.current = finalPins;
+      voidElimsRef.current = finalVoidElims;
+      setTotalTurnsCount(finalTurns);
+      setTotalDamageCount(finalDamage);
+      setPinsKnockedCount(finalPins);
+      setVoidElimsCount(finalVoidElims);
+    }
+
     setWinningTeam(victor);
     setIsGameOverOpen(true);
     const isPlayerWin = victor?.id === teams[0]?.id;
     sound.playVictory(isPlayerWin);
-    recordMatchResult(isPlayerWin, totalDamageCount, pinsKnockedCount, voidElimsCount);
+    recordMatchResult(isPlayerWin, finalDamage, finalPins, finalVoidElims);
 
     if (!isRemote && gameMode === 'LOCAL_NETWORK' && (networkRole === 'HOST' || networkService.getRole() === 'HOST')) {
       networkService.sendGameAction('GAME_OVER', {
         victorIdx: victor ? teams.findIndex((t) => t.id === victor.id) : null,
+        stats: {
+          totalTurns: finalTurns,
+          totalDamage: finalDamage,
+          pinsKnocked: finalPins,
+          voidElims: finalVoidElims,
+        },
       });
     }
 
@@ -833,21 +930,25 @@ export default function App() {
     customAngle?: number,
     customPower?: number,
     customX?: number,
-    isRemote = false
+    isRemote = false,
+    customWeaponId?: WeaponId
   ) => {
     const activeChar = characters.find((c) => c.id === activeCharId);
     if (!activeChar || activeChar.isDead || projectilesRef.current.length > 0 || turnPhase !== 'AIMING' || isRetreating) return;
 
     const activeTeam = teams[activeTeamIdx];
     if (!activeTeam) return;
-    const weapon = WEAPONS[selectedWeaponId];
+
+    const weaponId = customWeaponId ?? selectedWeaponId;
+    const weapon = WEAPONS[weaponId];
+    if (!weapon) return;
 
     // Check ammo
-    const currentAmmo = activeTeam.weapons[selectedWeaponId];
+    const currentAmmo = activeTeam.weapons[weaponId];
     if (currentAmmo === 0) return;
 
     if (currentAmmo > 0) {
-      activeTeam.weapons[selectedWeaponId] -= 1;
+      activeTeam.weapons[weaponId] -= 1;
     }
 
     const angle = customAngle ?? aimAngle;
@@ -855,24 +956,28 @@ export default function App() {
     const rad = (angle * Math.PI) / 180;
     const speed = (Math.max(20, power) / 100) * 12;
 
+    if (!weapon.isAirstrike && !weapon.isUtility && weaponId !== 'HOLY_DYNAMITE') {
+      activeChar.facing = angle <= 90 ? 1 : -1;
+    }
+
     if (!isRemote && gameMode === 'LOCAL_NETWORK' && isMyNetworkTurn) {
       networkService.sendGameAction('FIRE', {
         angle,
         power,
         targetX: customX ?? airstrikeTargetX ?? activeChar.x + (activeChar.facing * 180),
-        weaponId: selectedWeaponId,
+        weaponId,
       });
     }
 
     sound.ensureContext();
 
-    if (selectedWeaponId === 'SKIP_TURN') {
+    if (weaponId === 'SKIP_TURN') {
       sound.playClick();
       advanceTurn();
       return;
     }
 
-    if (selectedWeaponId === 'DIMENSIONAL_TELEPORT') {
+    if (weaponId === 'DIMENSIONAL_TELEPORT') {
       const targetX = customX ?? airstrikeTargetX ?? activeChar.x + (activeChar.facing * 180);
       const groundY = terrain.getGroundY(targetX, 50) || 350;
       activeChar.x = targetX;
@@ -910,7 +1015,7 @@ export default function App() {
       const dropX = customX ?? airstrikeTargetX ?? activeChar.x + activeChar.facing * 200;
       sound.playShoot('MISSILE');
 
-      if (selectedWeaponId === 'SEVEN_CHAKRA_STRIKE') {
+      if (weaponId === 'SEVEN_CHAKRA_STRIKE') {
         // Drop 7 sequential rainbow strikes
         pendingAirstrikesRef.current = 7;
         for (let i = 0; i < 7; i++) {
@@ -943,7 +1048,7 @@ export default function App() {
         // Single celestial crate / pin / meteor
         projectilesRef.current.push({
           id: Math.random().toString(),
-          type: selectedWeaponId,
+          type: weaponId,
           x: dropX,
           y: 40,
           vx: 0,
@@ -961,7 +1066,7 @@ export default function App() {
           shooterTeamId: activeTeam.id,
         });
       }
-    } else if (selectedWeaponId === 'HOLY_DYNAMITE') {
+    } else if (weaponId === 'HOLY_DYNAMITE') {
       sound.playShoot('MISSILE');
       projectilesRef.current.push({
         id: Math.random().toString(),
@@ -990,19 +1095,19 @@ export default function App() {
       setTurnPhase('RETREAT');
     } else {
       // Standard artillery projectile
-      sound.playShoot(selectedWeaponId === 'COSMIC_BOWLING_BALL' ? 'BOWLING' : 'MISSILE');
+      sound.playShoot(weaponId === 'COSMIC_BOWLING_BALL' ? 'BOWLING' : 'MISSILE');
 
       projectilesRef.current.push({
         id: Math.random().toString(),
-        type: selectedWeaponId,
+        type: weaponId,
         x: activeChar.x + Math.cos(rad) * 18,
         y: activeChar.y - Math.sin(rad) * 18,
         vx: Math.cos(rad) * speed,
         vy: -Math.sin(rad) * speed,
         rotation: Math.atan2(-Math.sin(rad) * speed, Math.cos(rad) * speed),
-        vRot: selectedWeaponId === 'COSMIC_BOWLING_BALL' ? 0.2 : 0.05,
+        vRot: weaponId === 'COSMIC_BOWLING_BALL' ? 0.2 : 0.05,
         timer: weapon.fuseSeconds ?? 10,
-        radius: selectedWeaponId === 'COSMIC_BOWLING_BALL' ? 9 : 5,
+        radius: weaponId === 'COSMIC_BOWLING_BALL' ? 9 : 5,
         damage: weapon.damage,
         blastRadius: weapon.blastRadius,
         bounces: 0,
@@ -1076,8 +1181,23 @@ export default function App() {
           particlesRef.current
         );
 
+        if (moveRes.fallDamage > 0) {
+          addMatchDamage(moveRes.fallDamage);
+        }
+        if (moveRes.diedFromFall) {
+          recordCharacterElimination(activeChar.id);
+        }
         if (moveRes.diedInVoid) {
-          setVoidElimsCount((c) => c + 1);
+          recordCharacterVoidDeath(activeChar.id);
+        }
+
+        // If active character died during AIMING or RETREAT (e.g. walked into void or fatal fall), settle turn cleanly
+        if (activeChar.isDead && (turnPhase === 'AIMING' || turnPhase === 'RETREAT')) {
+          setIsRetreating(false);
+          setIsCharging(false);
+          setTurnPhase('IMPACT_SETTLING');
+          settlingStartTimeRef.current = Date.now();
+          lastExplosionTimeRef.current = Date.now();
         }
 
         // Periodic network sync for active character motion
@@ -1111,15 +1231,24 @@ export default function App() {
         }
       }
 
-      // Update passive characters' physics (gravity, ground settling)
+      // Update passive characters' physics (gravity, ground settling, void & fall deaths)
       characters.forEach((char) => {
         if (char.id !== activeCharId && !char.isDead) {
-          updateCharacterPhysics(
+          const passiveRes = updateCharacterPhysics(
             char,
             { left: false, right: false, jump: false, backflip: false, jetpack: false },
             damageIndicatorsRef.current,
             particlesRef.current
           );
+          if (passiveRes.fallDamage > 0) {
+            addMatchDamage(passiveRes.fallDamage);
+          }
+          if (passiveRes.diedFromFall) {
+            recordCharacterElimination(char.id);
+          }
+          if (passiveRes.diedInVoid) {
+            recordCharacterVoidDeath(char.id);
+          }
         }
       });
 
@@ -1139,10 +1268,12 @@ export default function App() {
           projectilesRef.current.push(...tickRes.newProjectiles);
         }
 
-        // Tally damage
+        // Tally damage and actual eliminations
         tickRes.damagedCharacters.forEach((item) => {
-          setTotalDamageCount((c) => c + item.damage);
-          setPinsKnockedCount((c) => c + 1);
+          addMatchDamage(item.damage);
+          if (item.killed) {
+            recordCharacterElimination(item.character.id);
+          }
         });
 
         // Track explosion impact point and timestamp
@@ -1289,7 +1420,7 @@ export default function App() {
     ) {
       isAITurnActiveRef.current = true;
 
-      // Believable AI thinking delay (800ms - 1400ms)
+      // Believable AI thinking delay (1000ms)
       const thinkTimeout = window.setTimeout(() => {
         const decision = computeAITurn(
           activeChar,
@@ -1302,26 +1433,38 @@ export default function App() {
         setSelectedWeaponId(decision.weapon);
         setAimAngle(decision.angle);
         setAimPower(decision.power);
+        activeChar.facing = decision.angle <= 90 ? 1 : -1;
+        if (decision.targetX !== undefined) {
+          setAirstrikeTargetX(decision.targetX);
+        }
 
         // If reposition move needed
         if (decision.moveDirection) {
           moveInputRef.current[decision.moveDirection] = true;
-          setTimeout(() => {
+          window.setTimeout(() => {
             moveInputRef.current.left = false;
             moveInputRef.current.right = false;
           }, decision.moveDurationMs || 400);
         }
 
-        // Fire after brief aiming adjustment
-        setTimeout(() => {
-          fireCurrentWeapon(decision.angle, decision.power, decision.targetX);
+        // Fire after brief aiming adjustment, passing weapon explicitly to avoid stale closure
+        aiFireTimeoutRef.current = window.setTimeout(() => {
+          aiFireTimeoutRef.current = null;
+          fireCurrentWeapon(decision.angle, decision.power, decision.targetX, false, decision.weapon);
           isAITurnActiveRef.current = false;
         }, 600);
       }, 1000);
 
-      return () => clearTimeout(thinkTimeout);
+      return () => {
+        clearTimeout(thinkTimeout);
+        if (aiFireTimeoutRef.current) {
+          clearTimeout(aiFireTimeoutRef.current);
+          aiFireTimeoutRef.current = null;
+        }
+        isAITurnActiveRef.current = false;
+      };
     }
-  }, [activeTeamIdx, view, isPaused, activeCharId, characters, isGameOverOpen]);
+  }, [activeTeamIdx, view, isPaused, activeCharId, turnPhase, isGameOverOpen, isHotSeatModalOpen]);
 
   const activeTeam = teams[activeTeamIdx] || teams[0];
   const activeChar = characters.find((c) => c.id === activeCharId) || null;

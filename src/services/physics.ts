@@ -13,7 +13,7 @@ export const MAX_FALL_SPEED = 14;
 export interface PhysicsTickResult {
   explosions: Array<{ x: number; y: number; radius: number; isCosmic: boolean }>;
   newProjectiles: Projectile[];
-  damagedCharacters: Array<{ character: Character; damage: number }>;
+  damagedCharacters: Array<{ character: Character; damage: number; killed: boolean }>;
   voidEliminations: Character[];
 }
 
@@ -22,8 +22,11 @@ export function updateCharacterPhysics(
   moveInput: { left: boolean; right: boolean; jump: boolean; backflip: boolean; jetpack: boolean },
   damageIndicators: DamageIndicator[],
   particles: Particle[]
-): { diedInVoid: boolean; fellDown: boolean } {
-  if (char.isDead) return { diedInVoid: false, fellDown: false };
+): { diedInVoid: boolean; fellDown: boolean; fallDamage: number; diedFromFall: boolean } {
+  if (char.isDead) return { diedInVoid: false, fellDown: false, fallDamage: 0, diedFromFall: false };
+
+  let fallDamage = 0;
+  let diedFromFall = false;
 
   // Jetpack movement
   if (moveInput.jetpack && char.jetpackFuel > 0) {
@@ -146,6 +149,7 @@ export function updateCharacterPhysics(
       if (prevVy > 8.5) {
         const damage = Math.min(50, Math.floor((prevVy - 8.5) * 11));
         if (damage > 0) {
+          fallDamage = damage;
           char.hp = Math.max(0, char.hp - damage);
           sound.playGrunt();
           damageIndicators.push({
@@ -157,6 +161,10 @@ export function updateCharacterPhysics(
             alpha: 1,
             vy: -1.2,
           });
+          if (char.hp <= 0) {
+            char.isDead = true;
+            diedFromFall = true;
+          }
         }
       }
 
@@ -191,10 +199,10 @@ export function updateCharacterPhysics(
       });
     }
 
-    return { diedInVoid: true, fellDown: false };
+    return { diedInVoid: true, fellDown: false, fallDamage, diedFromFall };
   }
 
-  return { diedInVoid: false, fellDown: false };
+  return { diedInVoid: false, fellDown: false, fallDamage, diedFromFall };
 }
 
 export function updateProjectiles(
@@ -429,7 +437,8 @@ export function triggerExplosion(
       const damage = Math.round(p.damage * factor);
 
       char.hp = Math.max(0, char.hp - damage);
-      result.damagedCharacters.push({ character: char, damage });
+      const killed = char.hp <= 0;
+      result.damagedCharacters.push({ character: char, damage, killed });
 
       // Knockback impulse vector
       const angle = Math.atan2(char.y - ey, char.x - ex);
@@ -449,7 +458,7 @@ export function triggerExplosion(
         vy: -1.4,
       });
 
-      if (char.hp <= 0) {
+      if (killed) {
         char.isDead = true;
         sound.playGrunt();
       }
